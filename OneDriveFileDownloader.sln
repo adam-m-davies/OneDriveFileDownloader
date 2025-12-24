@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.Core", "OneDriveFileDownloader.Core\OneDriveFileDownloader.Core.csproj", "{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.Console", "OneDriveFileDownloader.Console\OneDriveFileDownloader.Console.csproj", "{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|x64.Build.0 = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Debug|x86.Build.0 = Debug|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|x64.ActiveCfg = Release|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|x64.Build.0 = Release|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|x86.ActiveCfg = Release|Any CPU
+		{F1D7525B-80B5-4ACC-8B2D-37516717A9AB}.Release|x86.Build.0 = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|x64.Build.0 = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Debug|x86.Build.0 = Debug|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|x64.ActiveCfg = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|x64.Build.0 = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|x86.ActiveCfg = Release|Any CPU
+		{D93CB0EB-D8B4-4B5E-9A17-3187AE4ED757}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

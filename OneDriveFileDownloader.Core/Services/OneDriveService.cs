@@ -1,0 +1,173 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
+using Microsoft.Graph;
+using Microsoft.Identity.Client;
+using OneDriveFileDownloader.Core.Interfaces;
+using OneDriveFileDownloader.Core.Models;
+
+namespace OneDriveFileDownloader.Core.Services
+{
+    public class OneDriveService : IOneDriveService
+    {
+        private string _clientId;
+        private IPublicClientApplication _pca;
+        private readonly string[] _scopes = new[] { "Files.Read", "User.Read" };
+        private readonly HttpClient _http = new HttpClient();
+
+        public void Configure(string clientId)
+        {
+            _clientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
+            _pca = PublicClientApplicationBuilder
+                .Create(_clientId)
+                .WithDefaultRedirectUri()
+                .Build();
+        }
+
+        public async Task<string> AuthenticateInteractiveAsync()
+        {
+            if (_pca == null) throw new InvalidOperationException("Call Configure(clientId) first.");
+
+            try
+            {
+                var result = await _pca.AcquireTokenInteractive(_scopes)
+                    .WithPrompt(Prompt.SelectAccount)
+                    .ExecuteAsync();
+
+                // Graph client can reuse the MSAL-based auth provider. The silent acquire used by the provider will now succeed.
+                _graphClient = new GraphServiceClient(new MsalAuthenticationProvider(_pca, _scopes));
+
+                return result.Account.Username ?? result.Account.HomeAccountId?.Identifier ?? "(unknown)";
+            }
+            catch (MsalException)
+            {
+                // fallback to device code flow
+                var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
+                {
+                    Console.WriteLine(callback.Message);
+                    return Task.CompletedTask;
+                }).ExecuteAsync();
+
+                _graphClient = new GraphServiceClient(new MsalAuthenticationProvider(_pca, _scopes));
+
+                return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
+            }
+        }
+
+        public async Task<IList<SharedItemInfo>> ListSharedWithMeAsync()
+        {
+            var items = new List<SharedItemInfo>();
+            // call the "sharedWithMe" function via the SDK if available; otherwise retrieve via raw endpoint
+            // call Graph REST endpoint to get items shared with me
+            var token = await EnsureAccessTokenAsync();
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://graph.microsoft.com/v1.0/me/drive/sharedWithMe");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var res = await _http.SendAsync(req);
+            res.EnsureSuccessStatusCode();
+            var raw = await res.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("value", out var arr))
+            {
+                foreach (var el in arr.EnumerateArray())
+                {
+                    if (!el.TryGetProperty("remoteItem", out var remote)) continue;
+                    if (!remote.TryGetProperty("parentReference", out var parentRef)) continue;
+                    var driveId = parentRef.GetProperty("driveId").GetString();
+                    var itemId = remote.GetProperty("id").GetString();
+                    var id = el.GetProperty("id").GetString();
+                    var name = el.GetProperty("name").GetString();
+                    items.Add(new SharedItemInfo { Id = id, Name = name, RemoteDriveId = driveId, RemoteItemId = itemId });
+                }
+            }
+
+            return items;
+        }
+
+        public async Task<IList<DriveItemInfo>> ListChildrenAsync(SharedItemInfo sharedItem)
+        {
+            var list = new List<DriveItemInfo>();
+            var token = await EnsureAccessTokenAsync();
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $"https://graph.microsoft.com/v1.0/drives/{sharedItem.RemoteDriveId}/items/{sharedItem.RemoteItemId}/children");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var res = await _http.SendAsync(req);
+            res.EnsureSuccessStatusCode();
+            var raw = await res.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("value", out var arr))
+            {
+                foreach (var el in arr.EnumerateArray())
+                {
+                    var id = el.GetProperty("id").GetString();
+                    var name = el.GetProperty("name").GetString();
+                    var size = el.TryGetProperty("size", out var s) ? s.GetInt64() : (long?)null;
+                    string sha1 = null;
+                    if (el.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hh))
+                    {
+                        sha1 = hh.GetString();
+                    }
+                    var isFolder = el.TryGetProperty("folder", out var _);
+                    list.Add(new DriveItemInfo { Id = id, DriveId = sharedItem.RemoteDriveId, Name = name, Size = size, Sha1Hash = sha1, IsFolder = isFolder });
+                }
+            }
+
+            return list;
+        }
+
+        public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination)
+        {
+            // use drive and item ids
+            // download content via REST
+            var token = await EnsureAccessTokenAsync();
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $"https://graph.microsoft.com/v1.0/drives/{file.DriveId}/items/{file.Id}/content");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var res = await _http.SendAsync(req);
+            res.EnsureSuccessStatusCode();
+            using var stream = await res.Content.ReadAsStreamAsync();
+
+            using (var sha1 = SHA1.Create())
+            {
+                var buffer = new byte[81920];
+                int read;
+                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                {
+                    await destination.WriteAsync(buffer, 0, read);
+                    sha1.TransformBlock(buffer, 0, read, null, 0);
+                }
+
+                sha1.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                var hashBytes = sha1.Hash;
+                var sha1Hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+
+                destination.Seek(0, SeekOrigin.Begin);
+
+                return new Models.DownloadResult
+                {
+                    Sha1Hash = sha1Hash,
+                    Size = file.Size ?? destination.Length
+                };
+            }
+        }
+
+        private async Task<string> EnsureAccessTokenAsync()
+        {
+            try
+            {
+                var accounts = await _pca.GetAccountsAsync().ConfigureAwait(false);
+                var result = await _pca.AcquireTokenSilent(_scopes, accounts.FirstOrDefault()).ExecuteAsync().ConfigureAwait(false);
+                return result.AccessToken;
+            }
+            catch (MsalUiRequiredException)
+            {
+                var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
+                {
+                    Console.WriteLine(callback.Message);
+                    return Task.CompletedTask;
+                }).ExecuteAsync().ConfigureAwait(false);
+                return deviceResult.AccessToken;
+            }
+        }
+    }
+}
