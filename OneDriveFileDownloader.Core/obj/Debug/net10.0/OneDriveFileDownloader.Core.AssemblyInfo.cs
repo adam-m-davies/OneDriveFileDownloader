@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OneDriveFileDownloader.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+000e0a014933bdd1e827d171e63ba5cf778c7090")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f5c61820fd673323629067237507aa81757c7973")]
 [assembly: System.Reflection.AssemblyProductAttribute("OneDriveFileDownloader.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OneDriveFileDownloader.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

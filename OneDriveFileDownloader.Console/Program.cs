@@ -40,11 +40,29 @@ class Program
 
         var chosen = shared[idx];
         Console.WriteLine($"Listing children of: {chosen.Name}...");
-        var children = await svc.ListChildrenAsync(chosen);
-
+        // collect files recursively
         var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
-        var videos = children.Where(c => !c.IsFolder && videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase))).ToList();
-        Console.WriteLine($"Found {videos.Count} video files.");
+        var toVisit = new System.Collections.Generic.Queue<SharedItemInfo>();
+        // use the selected shared item as root (its RemoteItemId may be a folder)
+        var rootChildren = await svc.ListChildrenAsync(chosen);
+        var videos = new System.Collections.Generic.List<DriveItemInfo>();
+
+        var subfolders = new System.Collections.Generic.Queue<DriveItemInfo>(rootChildren.Where(c => c.IsFolder));
+        videos.AddRange(rootChildren.Where(c => !c.IsFolder && videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase))));
+
+        while (subfolders.Count > 0)
+        {
+            var folder = subfolders.Dequeue();
+            var fakeShared = new OneDriveFileDownloader.Core.Models.SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+            var children = await svc.ListChildrenAsync(fakeShared);
+            foreach (var c in children)
+            {
+                if (c.IsFolder) subfolders.Enqueue(c);
+                else if (videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase))) videos.Add(c);
+            }
+        }
+
+        Console.WriteLine($"Found {videos.Count} video files (recursive).\n");
 
         var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db");
         using var repo = new SqliteDownloadRepository(dbPath);
