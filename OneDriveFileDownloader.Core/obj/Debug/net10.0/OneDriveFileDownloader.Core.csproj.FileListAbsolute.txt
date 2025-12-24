@@ -3,3 +3,10 @@ C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.
 C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\OneDriveFileDownloader.Core.AssemblyInfoInputs.cache
 C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\OneDriveFileDownloader.Core.AssemblyInfo.cs
 C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\OneDriveFileDownloader.Core.csproj.CoreCompileInputs.cache
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\bin\Debug\net10.0\OneDriveFileDownloader.Core.deps.json
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\bin\Debug\net10.0\OneDriveFileDownloader.Core.dll
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\bin\Debug\net10.0\OneDriveFileDownloader.Core.pdb
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\OneDriveFileDownloader.Core.dll
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\refint\OneDriveFileDownloader.Core.dll
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\OneDriveFileDownloader.Core.pdb
+C:\Workspace\OneDriveFileDownloader\OneDriveFileDownloader.Core\obj\Debug\net10.0\ref\OneDriveFileDownloader.Core.dll

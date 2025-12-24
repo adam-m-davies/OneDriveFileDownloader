@@ -37,8 +37,7 @@ namespace OneDriveFileDownloader.Core.Services
                     .WithPrompt(Prompt.SelectAccount)
                     .ExecuteAsync();
 
-                // Graph client can reuse the MSAL-based auth provider. The silent acquire used by the provider will now succeed.
-                _graphClient = new GraphServiceClient(new MsalAuthenticationProvider(_pca, _scopes));
+                // Interactive auth completed; token cache is seeded for subsequent silent calls.
 
                 return result.Account.Username ?? result.Account.HomeAccountId?.Identifier ?? "(unknown)";
             }
@@ -51,7 +50,7 @@ namespace OneDriveFileDownloader.Core.Services
                     return Task.CompletedTask;
                 }).ExecuteAsync();
 
-                _graphClient = new GraphServiceClient(new MsalAuthenticationProvider(_pca, _scopes));
+                // Interactive auth completed; token cache seeded.
 
                 return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
             }
