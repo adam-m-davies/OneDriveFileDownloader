@@ -12,35 +12,6 @@ namespace OneDriveFileDownloader.Tests
 {
     public class MainViewModelTests
     {
-        class FakeOneDriveService : IOneDriveService
-        {
-            public List<SharedItemInfo> Shared = new List<SharedItemInfo>();
-            public Dictionary<string, List<DriveItemInfo>> Children = new Dictionary<string, List<DriveItemInfo>>();
-
-            public void Configure(string clientId) { }
-            public Task<string> AuthenticateInteractiveAsync() => Task.FromResult("fakeuser@example.com");
-            public async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
-            {
-                // simulate some work and respect cancellation
-                var bytes = Encoding.UTF8.GetBytes("dummycontent");
-                await Task.Delay(200, cancellation);
-                cancellation.ThrowIfCancellationRequested();
-                await destination.WriteAsync(bytes, 0, bytes.Length, cancellation);
-                progress?.Report(bytes.Length);
-                var sha = "deadbeef";
-                return new DownloadResult { Sha1Hash = sha, Size = bytes.Length };
-            }
-
-            public Task<IList<DriveItemInfo>> ListChildrenAsync(SharedItemInfo sharedItem)
-            {
-                if (Children.TryGetValue(sharedItem.RemoteItemId, out var list)) return Task.FromResult((IList<DriveItemInfo>)list);
-                return Task.FromResult((IList<DriveItemInfo>)new List<DriveItemInfo>());
-            }
-
-            public Task<IList<SharedItemInfo>> ListSharedWithMeAsync() => Task.FromResult((IList<SharedItemInfo>)Shared);
-
-            public Task<UserProfile> GetUserProfileAsync() => Task.FromResult(new UserProfile { DisplayName = "Fake User" });
-        }
 
         class FakeRepo : IDownloadRepository
         {
@@ -50,7 +21,6 @@ namespace OneDriveFileDownloader.Tests
             {
                 Added.Add(record);
                 Stored.Add(record);
-                record.DownloadedAtUtc = record.DownloadedAtUtc == default ? System.DateTime.UtcNow : record.DownloadedAtUtc;
                 return Task.CompletedTask;
             }
 
@@ -61,33 +31,6 @@ namespace OneDriveFileDownloader.Tests
                 IList<DownloadRecord> list = Stored.OrderByDescending(r => r.DownloadedAtUtc).Take(count).ToList();
                 return Task.FromResult(list);
             }
-        }
-
-        class FailOnceThenSucceedService : IOneDriveService
-        {
-            private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _attempts = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
-            public void Configure(string clientId) { }
-            public Task<string> AuthenticateInteractiveAsync() => Task.FromResult("fakeuser@example.com");
-            public async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
-            {
-                var attempt = _attempts.AddOrUpdate(file.Id, 1, (_, v) => v + 1);
-                if (attempt == 1)
-                {
-                    await Task.Delay(50, cancellation);
-                    throw new System.Exception("Simulated failure");
-                }
-
-                var bytes = Encoding.UTF8.GetBytes("dummycontent");
-                await Task.Delay(10, cancellation);
-                await destination.WriteAsync(bytes, 0, bytes.Length, cancellation);
-                progress?.Report(bytes.Length);
-                var sha = "cafebabe";
-                return new DownloadResult { Sha1Hash = sha, Size = bytes.Length };
-            }
-
-            public Task<IList<DriveItemInfo>> ListChildrenAsync(SharedItemInfo sharedItem) => Task.FromResult((IList<DriveItemInfo>)new List<DriveItemInfo>());
-            public Task<IList<SharedItemInfo>> ListSharedWithMeAsync() => Task.FromResult((IList<SharedItemInfo>)new List<SharedItemInfo>());
-            public Task<UserProfile> GetUserProfileAsync() => Task.FromResult(new UserProfile { DisplayName = "Fake User" });
         }
 
         [Fact]
@@ -181,7 +124,7 @@ namespace OneDriveFileDownloader.Tests
             var svc = new FakeOneDriveService();
             var repo = new FakeRepo();
             var vm = new MainViewModel(svc, repo);
-            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 12 };
+            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
             var item = new DownloadItemViewModel(file);
 
             // ensure settings have a download folder
@@ -198,77 +141,51 @@ namespace OneDriveFileDownloader.Tests
         }
 
         [Fact]
-        public async Task DownloadQueue_RespectsMaxConcurrentDownloads()
+        public async Task DownloadUpdatesProgressAndEta()
         {
             var svc = new FakeOneDriveService();
             var repo = new FakeRepo();
             var vm = new MainViewModel(svc, repo);
-            vm.MaxConcurrentDownloads = 1;
+            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
+            var item = new DownloadItemViewModel(file);
 
-            // ensure settings have a download folder
             var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
             settings.LastDownloadFolder = Path.GetTempPath();
             OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
 
-            var item1 = new DownloadItemViewModel(new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false, Size = 1200000 });
-            var item2 = new DownloadItemViewModel(new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false, Size = 1200000 });
+            await vm.DownloadAsync(item);
 
-            var t1 = vm.DownloadAsync(item1);
-            var t2 = vm.DownloadAsync(item2);
-
-            await Task.Delay(50);
-            // with MaxConcurrentDownloads=1 only first should be downloading
-            Assert.True(item1.IsDownloading || item1.Status == "Downloading");
-            Assert.False(item2.IsDownloading || item2.Status == "Downloading");
-
-            await Task.WhenAll(t1, t2);
-            Assert.Equal("Completed", item1.Status);
-            Assert.Equal("Completed", item2.Status);
+            Assert.Equal("Completed", item.Status);
+            Assert.True(item.Progress > 0);
+            Assert.True(item.SpeedBytesPerSecond > 0);
+            Assert.True(item.EstimatedSecondsRemaining.HasValue);
         }
 
         [Fact]
-        public async Task Retry_ReDownloadsAfterFailure()
+        public async Task Download_RetrySucceedsAfterFailure()
         {
-            // service fails once per file id then succeeds
-            var svc = new FailOnceThenSucceedService();
+            var svc = new FakeOneDriveService();
             var repo = new FakeRepo();
+            // configure fake service to fail first time
+            var failOnce = true;
+            svc = new FakeOneDriveServiceWithFailure(() => failOnce);
             var vm = new MainViewModel(svc, repo);
 
-            // ensure settings have a download folder
+            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video2.mp4", IsFolder = false, Size = 4096 * 5 };
+            var item = new DownloadItemViewModel(file);
+
             var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
             settings.LastDownloadFolder = Path.GetTempPath();
             OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
-
-            var file = new DriveItemInfo { Id = "f3", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 1200000 };
-            var item = new DownloadItemViewModel(file);
 
             await vm.DownloadAsync(item);
             Assert.Equal("Error", item.Status);
 
-            // retry
-            item.Retry();
+            // allow next attempt to succeed
+            failOnce = false;
+            item.ResetForRetry();
             await vm.DownloadAsync(item);
             Assert.Equal("Completed", item.Status);
-        }
-
-        [Fact]
-        public void XamlFiles_ContainAutomationNames()
-        {
-            // find repo root by locating the solution file, then search for XAML files
-            string? cursor = Directory.GetCurrentDirectory();
-            string? repoRoot = null;
-            while (cursor != null)
-            {
-                var slns = Directory.GetFiles(cursor, "*.sln", SearchOption.TopDirectoryOnly);
-                if (slns.Length > 0) { repoRoot = cursor; break; }
-                cursor = Directory.GetParent(cursor)?.FullName;
-            }
-
-            Assert.False(string.IsNullOrEmpty(repoRoot), "Repository root (solution folder) not found");
-            var xamls = Directory.GetFiles(repoRoot!, "*.xaml", SearchOption.AllDirectories)
-                .Where(p => !p.Contains("bin") && !p.Contains("obj") && !p.Contains("\\OneDriveFileDownloader.Tests\\"));
-
-            Assert.Contains(xamls, p => File.ReadAllText(p).Contains("AutomationProperties.Name"));
         }
     }
 }

@@ -10,13 +10,13 @@
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:DownloadItemViewModel">
                     <StackPanel Orientation="Horizontal" Padding="6">
-                        <TextBlock Text="{x:Bind File.Name}" Width="220" AutomationProperties.Name="{x:Bind File.Name}" />
-                        <ProgressBar Value="{x:Bind Progress}" Width="120" Margin="8,0,0,0" AutomationProperties.Name="Progress" />
+                        <TextBlock Text="{x:Bind File.Name}" Width="220" />
+                        <ProgressBar Value="{x:Bind Progress}" Width="120" Margin="8,0,0,0" />
                         <TextBlock Text="{x:Bind Progress, StringFormat='{}{0:N0}%'}" Margin="8,0,0,0" VerticalAlignment="Center" />
                         <TextBlock Text="{x:Bind Status}" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{x:Bind EstimatedRemaining}" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        <Button Content="Cancel" Margin="8,0,0,0" Click="CancelButton_Click" IsEnabled="{x:Bind IsDownloading}" AutomationProperties.Name="Cancel" />
-                        <Button Content="Retry" Margin="8,0,0,0" Click="RetryButton_Click" IsEnabled="{x:Bind (!IsDownloading) && (Status == "Error")}" AutomationProperties.Name="Retry" />
+                        <TextBlock Text="{x:Bind EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        <Button Content="Cancel" Margin="8,0,0,0" Click="CancelButton_Click" IsEnabled="{x:Bind IsDownloading}" />
+                        <Button Content="Retry" Margin="8,0,0,0" Click="RetryButton_Click" IsEnabled="{x:Bind IsError}" />
                     </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

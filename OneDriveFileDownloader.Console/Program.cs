@@ -4,8 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using OneDriveFileDownloader.Core.Interfaces;
 using OneDriveFileDownloader.Core.Models;
-using OneDriveFileDownloader.Core.Services;
-// using OneDriveFileDownloader.Console.Services; // avoid ambiguous SettingsStore - use Core.Services.SettingsStore instead
+using OneDriveFileDownloader.Core.Services; // prefer core SettingsStore reference; avoid Console.Services ambiguity
 
 class Program
 {
