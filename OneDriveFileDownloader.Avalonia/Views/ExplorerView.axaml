@@ -2,36 +2,57 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="OneDriveFileDownloader.Avalonia.Views.ExplorerView">
-  <StackPanel Margin="8">
-    <TextBlock Text="Explorer" FontSize="18" FontWeight="Bold" />
-    <CheckBox Content="Scan on selection" IsChecked="{Binding ScanOnSelection}" Margin="0,4" />
-    <Grid ColumnDefinitions="300,*" RowDefinitions="Auto">
-      <StackPanel Grid.Column="0" Margin="0,8,8,0">
-        <Button x:Name="ScanFolderBtn" Content="Scan folder" IsVisible="{Binding !ScanOnSelection}" />
-        <TreeView x:Name="FolderTree" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
-        <TreeView.ItemTemplate>
-          <DataTemplate>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="{Binding Item.Name}" />
-            </StackPanel>
-          </DataTemplate>
-        </TreeView.ItemTemplate>
-      </TreeView>
-      </StackPanel>
+  <Grid RowDefinitions="Auto, *">
+    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,16">
+      <TextBlock Grid.Column="0" Text="Explorer" FontSize="24" FontWeight="SemiBold" />
+      <CheckBox Grid.Column="1" Content="Scan on selection" IsChecked="{Binding ScanOnSelection}" VerticalAlignment="Center" />
+    </Grid>
 
-      <ListBox x:Name="ContentsList" Grid.Column="1" ItemsSource="{Binding Videos}" Margin="8,8,0,8">
+    <Grid Grid.Row="1" ColumnDefinitions="300, 12, *">
+      <!-- Left Pane: Folder Tree -->
+      <Grid Grid.Column="0" RowDefinitions="Auto, *">
+        <Button Grid.Row="0" x:Name="ScanFolderBtn" HorizontalAlignment="Stretch" Margin="0,0,0,8" IsVisible="{Binding !ScanOnSelection}">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
+            <TextBlock Text="Scan Selected Folder" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        
+        <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding FolderRoots}" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4">
+          <TreeView.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource SystemAccentColor}" />
+                <TextBlock Text="{Binding Item.Name}" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </Grid>
+
+      <!-- Right Pane: Contents -->
+      <ListBox Grid.Column="2" x:Name="ContentsList" ItemsSource="{Binding Videos}" Background="Transparent" BorderThickness="0">
         <ListBox.ItemTemplate>
           <DataTemplate>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="{Binding File.Name}" Width="300"/>
-              <TextBlock Text="{Binding Status}"/>
-              <Button Content="⏵" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" />
-              <Button Content="✖" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" />
-              <Button Content="🔁" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" />
-            </StackPanel>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">
+              <Grid ColumnDefinitions="Auto, *, Auto">
+                <TextBlock Grid.Column="0" Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,16,0" />
+                
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding File.Name}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                  <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding !IsDownloading}" Background="Transparent" BorderThickness="0" />
+                  <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" Background="Transparent" BorderThickness="0" Foreground="Red" />
+                  <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" Background="Transparent" BorderThickness="0" />
+                </StackPanel>
+              </Grid>
+            </Border>
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
     </Grid>
-  </StackPanel>
+  </Grid>
 </UserControl>
