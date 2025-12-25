@@ -1,4 +1,4 @@
-﻿namespace OneDriveFileDownloader.Core;
+namespace OneDriveFileDownloader.Core;
 
 public class Class1
 {

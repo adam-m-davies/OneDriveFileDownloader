@@ -1,10 +1,10 @@
-﻿namespace OneDriveFileDownloader.Tests;
+namespace OneDriveFileDownloader.Tests;
 
 public class UnitTest1
 {
-    [Fact]
-    public void Test1()
-    {
+	[Fact]
+	public void Test1()
+	{
 
-    }
+	}
 }
