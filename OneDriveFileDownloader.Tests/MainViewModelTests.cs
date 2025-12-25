@@ -43,7 +43,7 @@ namespace OneDriveFileDownloader.Tests
 			svc.Children["r1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "sub", IsFolder = true } };
 			svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 
-			var vm = new MainViewModel(svc, new FakeRepo());
+			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, new FakeRepo());
 			await vm.LoadSharedItemsAsync();
 			Assert.Single(vm.SharedItems);
 			await vm.ScanAsync(root);
@@ -55,7 +55,7 @@ namespace OneDriveFileDownloader.Tests
 		{
 			var svc = new FakeOneDriveService();
 			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
+			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 			var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 12 };
 			var item = new DownloadItemViewModel(file);
 
@@ -76,7 +76,7 @@ namespace OneDriveFileDownloader.Tests
         {
             var svc = new FakeOneDriveService();
             var repo = new FakeRepo();
-            var vm = new MainViewModel(svc, repo);
+var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
             var file = new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false, Size = 20 };
             var item = new DownloadItemViewModel(file);
 
@@ -98,19 +98,21 @@ namespace OneDriveFileDownloader.Tests
         {
             var svc = new FakeOneDriveService();
             // create folder structure
-            var rootFolder = new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "root", IsFolder = true };
+            var rootFolder = new SharedItemInfo { Id = "fold1", RemoteItemId = "fold1", RemoteDriveId = "d", Name = "root" };
             svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
             svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 
             var repo = new FakeRepo();
-            var vm = new MainViewModel(svc, repo);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
             var node = await vm.BuildFolderNodeAsync(rootFolder);
-            Assert.Equal(2, node.Children.Count);
+            // Only folders are added to the tree
+            Assert.Equal(1, node.Children.Count);
 
-            var subNode = node.Children[1];
+            var subNode = node.Children[0];
             await vm.ExpandNodeAsync(subNode);
-            Assert.Single(subNode.Children);
+            // sub1 has one file, so 0 folders
+            Assert.Empty(subNode.Children);
         }
 
 		[Fact]
@@ -120,7 +122,7 @@ namespace OneDriveFileDownloader.Tests
 			svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
 			svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
+			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 			var results = await vm.ScanFolderAsync(new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "fold1", IsFolder = true });
 			Assert.Equal(2, results.Count);
 		}
@@ -133,7 +135,7 @@ namespace OneDriveFileDownloader.Tests
             svc.Shared.Add(root);
             svc.Children["r1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "sub", IsFolder = true } };
             var repo = new FakeRepo();
-            var vm = new MainViewModel(svc, repo);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
             await vm.PopulateFolderRootsAsync(root);
             Assert.Single(vm.FolderRoots);
@@ -145,7 +147,7 @@ namespace OneDriveFileDownloader.Tests
         {
             var svc = new FakeOneDriveService();
             var repo = new FakeRepo();
-            var vm = new MainViewModel(svc, repo);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
             var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
             var item = new DownloadItemViewModel(file);
 
@@ -173,7 +175,7 @@ namespace OneDriveFileDownloader.Tests
 		{
 			var svc = new FakeOneDriveService();
 			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
+			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 			var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
 			var item = new DownloadItemViewModel(file);
 
@@ -197,7 +199,7 @@ namespace OneDriveFileDownloader.Tests
 			// configure fake service to fail first time
 			var failOnce = true;
 			svc = new FakeOneDriveServiceWithFailure(() => failOnce);
-			var vm = new MainViewModel(svc, repo);
+			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
 			var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video2.mp4", IsFolder = false, Size = 4096 * 5 };
 			var item = new DownloadItemViewModel(file);

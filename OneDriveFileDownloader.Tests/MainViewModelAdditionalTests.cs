@@ -12,7 +12,7 @@ namespace OneDriveFileDownloader.Tests
         {
             var svc = new FakeOneDriveService();
             var repo = new MainViewModelTests.FakeRepo();
-            var vm = new MainViewModel(svc, repo);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
             vm.ScanLastCommand.Execute(null);
             await Task.Delay(200);
@@ -23,12 +23,22 @@ namespace OneDriveFileDownloader.Tests
         [Fact]
         public void SettingsStore_SaveSelectedUx_Persists()
         {
-            var s = SettingsStore.Load();
-            s.SelectedUx = UxOption.Dashboard;
-            SettingsStore.Save(s);
+            var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".json");
+            SettingsStore.TestFilePathOverride = temp;
+            try
+            {
+                var s = SettingsStore.Load();
+                s.SelectedUx = UxOption.Dashboard;
+                SettingsStore.Save(s);
 
-            var s2 = SettingsStore.Load();
-            Assert.Equal(UxOption.Dashboard, s2.SelectedUx);
+                var s2 = SettingsStore.Load();
+                Assert.Equal(UxOption.Dashboard, s2.SelectedUx);
+            }
+            finally
+            {
+                SettingsStore.TestFilePathOverride = null;
+                if (File.Exists(temp)) File.Delete(temp);
+            }
         }
     }
 }

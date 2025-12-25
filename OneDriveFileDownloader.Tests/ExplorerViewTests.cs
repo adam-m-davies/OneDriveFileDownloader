@@ -47,7 +47,7 @@ namespace OneDriveFileDownloader.Tests
             settings.LastDownloadFolder = System.IO.Path.GetTempPath();
             OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
 
-            var vm = new MainViewModel(svc, repo);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
             // simulate the double-click behavior by invoking the viewmodel download directly (avoids platform-dependent UI startup in tests)
             var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false };

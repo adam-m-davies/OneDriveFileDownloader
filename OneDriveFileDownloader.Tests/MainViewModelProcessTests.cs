@@ -10,7 +10,7 @@ namespace OneDriveFileDownloader.Tests
         public void OpenPath_Uses_Launcher()
         {
             var launcher = new FakeProcessLauncher();
-            var vm = new MainViewModel(new FakeOneDriveService(), new MainViewModelTests.FakeRepo(), launcher: launcher);
+            var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(new FakeOneDriveService(), new MainViewModelTests.FakeRepo(), launcher: launcher);
             var temp = Path.GetTempFileName();
             try
             {

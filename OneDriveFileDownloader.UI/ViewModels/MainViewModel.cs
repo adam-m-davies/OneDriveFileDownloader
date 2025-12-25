@@ -103,6 +103,34 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			StatusText = SharedItems.Count == 0 ? "No shared items found." : $"Found {SharedItems.Count} shared items.";
 		}
 
+		public async Task PopulateFolderRootsAsync(SharedItemInfo root)
+		{
+			FolderRoots.Clear();
+			if (root == null) return;
+			var node = await BuildFolderNodeAsync(root);
+			FolderRoots.Add(node);
+		}
+
+		public async Task<DriveItemNode> BuildFolderNodeAsync(SharedItemInfo root)
+		{
+			var node = new DriveItemNode(new DriveItemInfo { Id = root.RemoteItemId, DriveId = root.RemoteDriveId, Name = root.Name, IsFolder = true });
+			await ExpandNodeAsync(node);
+			return node;
+		}
+
+		public async Task ExpandNodeAsync(DriveItemNode node)
+		{
+			if (node.IsExpanded) return;
+			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
+			var children = await _svc.ListChildrenAsync(fakeShared);
+			node.Children.Clear();
+			foreach (var c in children.Where(x => x.IsFolder))
+			{
+				node.Children.Add(new DriveItemNode(c));
+			}
+			node.IsExpanded = true;
+		}
+
 		public async Task ScanAsync(SharedItemInfo selected)
 		{
 			if (selected == null) return;
@@ -142,46 +170,25 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			foreach (var r in recs) RecentDownloads.Add(r);
 		}
 
-		public async Task<DriveItemNode> BuildFolderNodeAsync(DriveItemInfo folder)
+	private void OpenFolder(string path)
+	{
+		try
 		{
-			var node = new DriveItemNode(folder);
-			// only populate immediate children for performance
-			var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
-			var children = await _svc.ListChildrenAsync(fakeShared);
-			foreach (var c in children)
+			if (OperatingSystem.IsWindows())
 			{
-				node.Children.Add(new DriveItemNode(c));
+				System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", '"' + path + '"') { UseShellExecute = true });
 			}
-			return node;
-		}
-
-		public async Task PopulateFolderRootsAsync(SharedItemInfo shared)
-		{
-			FolderRoots.Clear();
-			if (shared == null) return;
-			var rootNode = await BuildFolderNodeAsync(new DriveItemInfo { Id = shared.RemoteItemId, DriveId = shared.RemoteDriveId, Name = shared.Name, IsFolder = true });
-			FolderRoots.Add(rootNode);
-		}
-
-		private void OpenFolder(string path)
-		{
-			try
+			else if (OperatingSystem.IsLinux())
 			{
-				if (OperatingSystem.IsWindows())
-				{
-					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", '"' + path + '"') { UseShellExecute = true });
-				}
-				else if (OperatingSystem.IsLinux())
-				{
-					System.Diagnostics.Process.Start("xdg-open", path);
-				}
-				else if (OperatingSystem.IsMacOS())
-				{
-					System.Diagnostics.Process.Start("open", path);
-				}
+				System.Diagnostics.Process.Start("xdg-open", path);
 			}
-			catch { }
+			else if (OperatingSystem.IsMacOS())
+			{
+				System.Diagnostics.Process.Start("open", path);
+			}
 		}
+		catch { }
+	}
 
 	public bool OpenPath(string path)
 	{
@@ -189,6 +196,25 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		return _launcher.Open(path);
 	}
 
+	public async Task<IList<DownloadItemViewModel>> ScanFolderAsync(DriveItemInfo folder)
+	{
+		var results = new System.Collections.Generic.List<DownloadItemViewModel>();
+		var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
+		var queue = new System.Collections.Generic.Queue<DriveItemInfo>();
+		queue.Enqueue(folder);
+		while (queue.Count > 0)
+		{
+			var f = queue.Dequeue();
+			var fakeShared = new SharedItemInfo { Id = f.Id, RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
+			var children = await _svc.ListChildrenAsync(fakeShared);
+			foreach (var c in children)
+			{
+				if (c.IsFolder) queue.Enqueue(c);
+				else if (videoExts.Any(e => c.Name.EndsWith(e, System.StringComparison.OrdinalIgnoreCase))) results.Add(new DownloadItemViewModel(c));
+			}
+		}
+		return results;
+	}
 
 		private readonly System.Threading.SemaphoreSlim _downloadSemaphore = new System.Threading.SemaphoreSlim(3);
 

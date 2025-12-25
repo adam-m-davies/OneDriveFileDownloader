@@ -11,27 +11,27 @@ namespace OneDriveFileDownloader.Avalonia.Views;
 
 public partial class ExplorerView : UserControl
 {
-	private MainViewModel _vm;
+	private OneDriveFileDownloader.UI.ViewModels.MainViewModel _vm;
 
 	public ExplorerView()
 	{
 		InitializeComponent();
-		this.AttachedToVisualTree += (s, e) => { _vm = DataContext as MainViewModel; ScanFolderBtn.Click += ScanFolderBtn_Click; };
+		this.AttachedToVisualTree += (s, e) => { _vm = DataContext as OneDriveFileDownloader.UI.ViewModels.MainViewModel; ScanFolderBtn.Click += ScanFolderBtn_Click; };
 		FolderTree.SelectionChanged += FolderTree_SelectionChanged;
 		ContentsList.DoubleTapped += ContentsList_DoubleTapped;
 	}
 
 	private void FolderTree_SelectionChanged(object sender, SelectionChangedEventArgs e)
 	{
-		if (FolderTree.SelectedItem is DriveItemNode node)
+		if (FolderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn)
 		{
 			// expand node (load children)
 			_ = Task.Run(async () =>
 			{
-				await _vm.ExpandNodeAsync(node);
+				await _vm.ExpandNodeAsync(dn);
 				if (_vm.ScanOnSelection)
 				{
-					var results = await _vm.ScanFolderAsync(node.Item);
+					var results = await _vm.ScanFolderAsync(dn.Item);
 					await Dispatcher.UIThread.InvokeAsync(() =>
 					{
 						ContentsList.ItemsSource = results;
@@ -43,19 +43,19 @@ public partial class ExplorerView : UserControl
 
 	private void FolderTreeItem_Expanded(object sender, RoutedEventArgs e)
 	{
-		if (e.Source is TreeViewItem tvi && tvi.DataContext is DriveItemNode node)
+		if (e.Source is TreeViewItem tvi && tvi.DataContext is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn)
 		{
-			_ = Task.Run(async () => { await _vm.ExpandNodeAsync(node); });
+			_ = Task.Run(async () => { await _vm.ExpandNodeAsync(dn); });
 		}
 	}
 
 	private void ScanFolderBtn_Click(object sender, RoutedEventArgs e)
 	{
-		if (FolderTree.SelectedItem is DriveItemNode node && node.IsFolder)
+		if (FolderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn && dn.IsFolder)
 		{
 			_ = Task.Run(async () =>
 			{
-				var results = await _vm.ScanFolderAsync(node.Item);
+				var results = await _vm.ScanFolderAsync(dn.Item);
 				await Dispatcher.UIThread.InvokeAsync(() => { ContentsList.ItemsSource = results; });
 			});
 		}
