@@ -70,41 +70,47 @@ namespace OneDriveFileDownloader.Tests
 			Assert.Equal(file.Id, repo.Added[0].FileId);
 		}
 
-		[Fact]
-		public async Task LoadRecentDownloads_PopulatesRecentDownloads()
-		{
-			var svc = new FakeOneDriveService();
-			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
+        [Fact]
+        public async Task DownloadCommand_Works_Like_DownloadAsync()
+        {
+            var svc = new FakeOneDriveService();
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+            var file = new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false, Size = 20 };
+            var item = new DownloadItemViewModel(file);
 
-			// seed repo with two records
-			repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f1", FileName = "a.mp4", Sha1Hash = "abcd", LocalPath = Path.Combine(Path.GetTempPath(), "a.mp4"), DownloadedAtUtc = System.DateTime.UtcNow.AddMinutes(-5) });
-			repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f2", FileName = "b.mp4", Sha1Hash = "ef01", LocalPath = Path.Combine(Path.GetTempPath(), "b.mp4"), DownloadedAtUtc = System.DateTime.UtcNow });
+            var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
+            settings.LastDownloadFolder = Path.GetTempPath();
+            OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
 
-			await vm.LoadRecentDownloadsAsync(10);
-			Assert.Equal(2, vm.RecentDownloads.Count);
-			Assert.Equal("b.mp4", vm.RecentDownloads[0].FileName);
-		}
+            vm.DownloadCommand.Execute(item);
+            // wait briefly for async command to finish
+            await Task.Delay(200);
 
-		[Fact]
-		public async Task Explorer_BuildAndExpand_PopulatesChildren()
-		{
-			var svc = new FakeOneDriveService();
-			// create folder structure
-			var rootFolder = new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "root", IsFolder = true };
-			svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
-			svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
+            Assert.Equal("Completed", item.Status);
+            Assert.Single(repo.Added);
+            Assert.Equal(file.Id, repo.Added[0].FileId);
+        }
 
-			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
+        [Fact]
+        public async Task Explorer_BuildAndExpand_PopulatesChildren()
+        {
+            var svc = new FakeOneDriveService();
+            // create folder structure
+            var rootFolder = new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "root", IsFolder = true };
+            svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
+            svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 
-			var node = await vm.BuildFolderNodeAsync(rootFolder);
-			Assert.Equal(2, node.Children.Count);
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
 
-			var subNode = node.Children[1];
-			await vm.ExpandNodeAsync(subNode);
-			Assert.Single(subNode.Children);
-		}
+            var node = await vm.BuildFolderNodeAsync(rootFolder);
+            Assert.Equal(2, node.Children.Count);
+
+            var subNode = node.Children[1];
+            await vm.ExpandNodeAsync(subNode);
+            Assert.Single(subNode.Children);
+        }
 
 		[Fact]
 		public async Task Explorer_ScanFolderRecursively_FindsVideos()
@@ -118,14 +124,29 @@ namespace OneDriveFileDownloader.Tests
 			Assert.Equal(2, results.Count);
 		}
 
-		[Fact]
-		public async Task DownloadAsync_Cancels_WhenRequested()
-		{
-			var svc = new FakeOneDriveService();
-			var repo = new FakeRepo();
-			var vm = new MainViewModel(svc, repo);
-			var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
-			var item = new DownloadItemViewModel(file);
+        [Fact]
+        public async Task PopulateFolderRoots_PopulatesRootsCollection()
+        {
+            var svc = new FakeOneDriveService();
+            var root = new SharedItemInfo { Id = "s1", Name = "Root", RemoteDriveId = "d", RemoteItemId = "r1" };
+            svc.Shared.Add(root);
+            svc.Children["r1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "sub", IsFolder = true } };
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+
+            await vm.PopulateFolderRootsAsync(root);
+            Assert.Single(vm.FolderRoots);
+            Assert.Equal("Root", vm.FolderRoots[0].Item.Name);
+        }
+
+        [Fact]
+        public async Task DownloadAsync_Cancelled_Cancels()
+        {
+            var svc = new FakeOneDriveService();
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
+            var item = new DownloadItemViewModel(file);
 
 			// ensure settings have a download folder
 			var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();

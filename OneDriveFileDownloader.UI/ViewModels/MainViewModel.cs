@@ -20,6 +20,13 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
 		public ObservableCollection<DownloadRecord> RecentDownloads { get; } = new ObservableCollection<DownloadRecord>();
 
+		public ObservableCollection<DriveItemNode> FolderRoots { get; } = new ObservableCollection<DriveItemNode>();
+
+		public RelayCommand DownloadCommand { get; }
+		public RelayCommand CancelCommand { get; }
+		public RelayCommand RetryCommand { get; }
+		public RelayCommand OpenDownloadsCommand { get; }
+
 		private string _statusText = string.Empty;
 		public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
 
@@ -39,6 +46,11 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			{
 				_svc.Configure(_settings.LastClientId);
 			}
+
+			DownloadCommand = new RelayCommand(async p => { if (p is DownloadItemViewModel i) await DownloadAsync(i); });
+			CancelCommand = new RelayCommand(p => { if (p is DownloadItemViewModel i) i.Cancel(); });
+			RetryCommand = new RelayCommand(async p => { if (p is DownloadItemViewModel i) { i.ResetForRetry(); await DownloadAsync(i); } });
+			OpenDownloadsCommand = new RelayCommand(p => { if (!string.IsNullOrEmpty(_settings.LastDownloadFolder)) OpenFolder(_settings.LastDownloadFolder); });
 		}
 
 		public async Task SignInAsync(string clientId, bool save)
@@ -126,6 +138,34 @@ namespace OneDriveFileDownloader.UI.ViewModels
 				node.Children.Add(new DriveItemNode(c));
 			}
 			return node;
+		}
+
+		public async Task PopulateFolderRootsAsync(SharedItemInfo shared)
+		{
+			FolderRoots.Clear();
+			if (shared == null) return;
+			var rootNode = await BuildFolderNodeAsync(new DriveItemInfo { Id = shared.RemoteItemId, DriveId = shared.RemoteDriveId, Name = shared.Name, IsFolder = true });
+			FolderRoots.Add(rootNode);
+		}
+
+		private void OpenFolder(string path)
+		{
+			try
+			{
+				if (OperatingSystem.IsWindows())
+				{
+					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", '"' + path + '"') { UseShellExecute = true });
+				}
+				else if (OperatingSystem.IsLinux())
+				{
+					System.Diagnostics.Process.Start("xdg-open", path);
+				}
+				else if (OperatingSystem.IsMacOS())
+				{
+					System.Diagnostics.Process.Start("open", path);
+				}
+			}
+			catch { }
 		}
 
 		public async Task ExpandNodeAsync(DriveItemNode node)

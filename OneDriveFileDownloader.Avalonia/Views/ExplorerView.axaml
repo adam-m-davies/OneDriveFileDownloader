@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="OneDriveFileDownloader.Avalonia.Views.ExplorerView">
+  <StackPanel Margin="8">
+    <TextBlock Text="Explorer" FontSize="18" FontWeight="Bold" />
+    <Grid ColumnDefinitions="300,*" RowDefinitions="Auto">
+      <TreeView Name="FolderTree" Grid.Column="0" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
+        <TreeView.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding Item.Name}" />
+            </StackPanel>
+          </DataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+
+      <ListBox Name="ContentsList" Grid.Column="1" ItemsSource="{Binding Videos}" Margin="8,8,0,8">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding File.Name}" Width="300"/>
+              <TextBlock Text="{Binding Status}"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </StackPanel>
+</UserControl>
