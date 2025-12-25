@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using OneDriveFileDownloader.Core.Interfaces;
 using OneDriveFileDownloader.Core.Models;
 using OneDriveFileDownloader.Core.Services;
+using OneDriveFileDownloader.Console.Services;
 
 class Program
 {
@@ -12,8 +13,22 @@ class Program
     {
         Console.WriteLine("OneDrive File Downloader sample (personal accounts).\n");
 
-        Console.Write("Enter Azure app ClientId (app registration that allows personal accounts): ");
-        var clientId = Console.ReadLine().Trim();
+        var settings = SettingsStore.Load();
+        string? clientId = null;
+        if (!string.IsNullOrEmpty(settings?.LastClientId))
+        {
+            Console.Write($"Use last used ClientId: {settings.LastClientId}? (Y/n): ");
+            var useLast = Console.ReadLine()?.Trim();
+            if (string.IsNullOrEmpty(useLast) || useLast.Equals("y", StringComparison.OrdinalIgnoreCase))
+            {
+                clientId = settings.LastClientId;
+            }
+        }
+        if (string.IsNullOrEmpty(clientId))
+        {
+            Console.Write("Enter Azure app ClientId (app registration that allows personal accounts): ");
+            clientId = (Console.ReadLine() ?? string.Empty).Trim();
+        }
 
         var svc = new OneDriveService();
         svc.Configure(clientId);
@@ -21,6 +36,16 @@ class Program
         Console.WriteLine("Authenticating... (browser will open or device code displayed)");
         var user = await svc.AuthenticateInteractiveAsync();
         Console.WriteLine($"Signed in as: {user}\n");
+
+        // persist last used client id (best-effort)
+        try
+        {
+            if (!string.IsNullOrEmpty(clientId)) SettingsStore.SaveLastClientId(clientId);
+        }
+        catch
+        {
+            // ignore save errors
+        }
 
         var shared = await svc.ListSharedWithMeAsync();
         if (!shared.Any())
@@ -68,7 +93,7 @@ class Program
         using var repo = new SqliteDownloadRepository(dbPath);
 
         Console.Write("Enter local folder to save downloads (will be created): ");
-        var outFolder = Console.ReadLine().Trim();
+        var outFolder = (Console.ReadLine() ?? string.Empty).Trim();
         Directory.CreateDirectory(outFolder);
 
         foreach (var file in videos)
