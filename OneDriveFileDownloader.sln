@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.WinUI", "OneDriveFileDownloader.WinUI\OneDriveFileDownloader.WinUI.csproj", "{2279F03C-3ED5-4FD1-919B-275D4B034D62}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.Avalonia", "OneDriveFileDownloader.Avalonia\OneDriveFileDownloader.Avalonia.csproj", "{37C01581-721D-4D68-B75D-28602A9E1B1C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneDriveFileDownloader.UI", "OneDriveFileDownloader.UI\OneDriveFileDownloader.UI.csproj", "{525BEB12-B392-42F2-95B8-86E8ADAE2A32}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,17 +62,35 @@ Global
 		{B78C36C7-6E76-4E41-AAEA-5064F76E05AD}.Release|x86.ActiveCfg = Release|Any CPU
 		{B78C36C7-6E76-4E41-AAEA-5064F76E05AD}.Release|x86.Build.0 = Release|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|x64.Build.0 = Debug|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Debug|x86.Build.0 = Debug|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|x64.ActiveCfg = Release|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|x64.Build.0 = Release|Any CPU
 		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|x86.ActiveCfg = Release|Any CPU
-		{2279F03C-3ED5-4FD1-919B-275D4B034D62}.Release|x86.Build.0 = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|x64.Build.0 = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Debug|x86.Build.0 = Debug|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|x64.ActiveCfg = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|x64.Build.0 = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|x86.ActiveCfg = Release|Any CPU
+		{37C01581-721D-4D68-B75D-28602A9E1B1C}.Release|x86.Build.0 = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|x64.Build.0 = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Debug|x86.Build.0 = Debug|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|Any CPU.Build.0 = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|x64.ActiveCfg = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|x64.Build.0 = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|x86.ActiveCfg = Release|Any CPU
+		{525BEB12-B392-42F2-95B8-86E8ADAE2A32}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

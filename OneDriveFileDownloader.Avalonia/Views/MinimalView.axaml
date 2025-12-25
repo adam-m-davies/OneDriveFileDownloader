@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="OneDriveFileDownloader.Avalonia.Views.MinimalView">
+  <StackPanel Margin="8">
+    <TextBlock Text="Minimal" FontSize="18" FontWeight="Bold" />
+    <ListBox ItemsSource="{Binding Videos}" Height="400">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{Binding File.Name}" Width="300"/>
+            <ProgressBar Width="150" Height="16" Minimum="0" Maximum="100" Value="{Binding Progress}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Progress, StringFormat='{}{0:F0}%'}" Width="48" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" Width="60" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SpeedBytesPerSecond, StringFormat='{}{0:N0} B/s'}" Width="100" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Status}" Foreground="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Width="80" VerticalAlignment="Center" />
+            <Button Content="⏵" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" />
+            <Button Content="✖" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" />
+            <Button Content="🔁" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </StackPanel>
+</UserControl>

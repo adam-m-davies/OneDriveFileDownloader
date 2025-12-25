@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:OneDriveFileDownloader.Avalonia.Converters"
+             x:Class="OneDriveFileDownloader.Avalonia.App">
+  <Application.Resources>
+    <converters:SecondsToEtaConverter x:Key="SecondsToEtaConverter" />
+    <converters:StatusToBrushConverter x:Key="StatusToBrushConverter" />
+    <converters:BytesToBitmapConverter x:Key="BytesToBitmapConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+  </Application.Resources>
+  <Application.Styles>
+    <Styles />
+  </Application.Styles>
+</Application>

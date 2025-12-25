@@ -9,12 +9,17 @@
         <ListView ItemsSource="{Binding Videos}" x:Name="VideosList" Height="300" IsItemClickEnabled="True" SelectionMode="Single" ItemClick="VideosList_ItemClick">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:DownloadItemViewModel">
-                    <StackPanel Orientation="Horizontal" Padding="6">
-                        <TextBlock Text="{x:Bind File.Name}" Width="260" />
-                        <ProgressBar Value="{x:Bind Progress}" Width="150" Margin="8,0,0,0" />
+                    <StackPanel Orientation="Horizontal" Padding="6" AutomationProperties.Name="{x:Bind File.Name}" VerticalAlignment="Center">
+                        <Ellipse Width="12" Height="12" Fill="{x:Bind Status, Converter={StaticResource StatusToBrushConverter}}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="{x:Bind File.Name}" Width="220" />
+                        <ProgressBar Value="{x:Bind Progress}" Width="120" Margin="8,0,0,0" />
                         <TextBlock Text="{x:Bind Progress, StringFormat='{}{0:N0}%'}" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{x:Bind Status}" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        <Button Content="Cancel" Margin="8,0,0,0" Click="CancelButton_Click" IsEnabled="{x:Bind IsDownloading}" />
+                        <TextBlock Text="{x:Bind Status, Converter={StaticResource StatusToGlyphConverter}}" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="16"/>
+                        <TextBlock Text="{x:Bind Status}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Bind EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Bind RetryCount, StringFormat='Retries: {0}'}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        <Button Content="Cancel" Margin="8,0,0,0" Click="CancelButton_Click" IsEnabled="{x:Bind IsDownloading}" AutomationProperties.Name="Cancel download" />
+                        <Button Content="Retry" Margin="8,0,0,0" Click="RetryButton_Click" IsEnabled="{x:Bind IsRetryAllowed}" AutomationProperties.Name="Retry download" />
                     </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

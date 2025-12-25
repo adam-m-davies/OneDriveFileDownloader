@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="OneDriveFileDownloader.Avalonia.Views.DashboardView">
+  <StackPanel Margin="8">
+    <TextBlock Text="Dashboard" FontSize="18" FontWeight="Bold" />
+    <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+      <Button Content="Open downloads folder" Command="{Binding OpenDownloadsCommand}" />
+    </StackPanel>
+    <ListBox ItemsSource="{Binding RecentDownloads}" Height="300">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="{Binding FileName}" Width="300"/>
+            <TextBlock Text="{Binding DownloadedAtUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </StackPanel>
+</UserControl>
