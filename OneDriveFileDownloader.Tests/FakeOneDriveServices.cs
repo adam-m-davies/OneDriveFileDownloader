@@ -15,7 +15,7 @@ namespace OneDriveFileDownloader.Tests
 
         public void Configure(string clientId) { }
         public Task<string> AuthenticateInteractiveAsync() => Task.FromResult("fakeuser@example.com");
-        public virtual async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
+        public virtual async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long> progress = null, CancellationToken cancellation = default)
         {
             // simulate streaming progress
             var total = file.Size ?? (4096 * 10);
@@ -51,7 +51,7 @@ namespace OneDriveFileDownloader.Tests
         private readonly System.Func<bool> _shouldFail;
         public FakeOneDriveServiceWithFailure(System.Func<bool> shouldFail) { _shouldFail = shouldFail; }
 
-        public override async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
+        public override async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long> progress = null, CancellationToken cancellation = default)
         {
             if (_shouldFail()) throw new System.Exception("Simulated failure");
             return await base.DownloadFileAsync(file, destination, progress, cancellation);

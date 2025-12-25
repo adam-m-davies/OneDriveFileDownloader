@@ -9,8 +9,8 @@ namespace OneDriveFileDownloader.Tests
         public void OneDriveService_DoesNotContainWriteHttpMethods()
         {
             // search upwards from the test output folder to find the solution file, then search from repo root
-            string? cursor = Directory.GetCurrentDirectory();
-            string? repoRoot = null;
+            string cursor = Directory.GetCurrentDirectory();
+            string repoRoot = null;
             while (cursor != null)
             {
                 var slns = Directory.GetFiles(cursor, "*.sln", SearchOption.TopDirectoryOnly);
@@ -19,11 +19,12 @@ namespace OneDriveFileDownloader.Tests
                     repoRoot = cursor;
                     break;
                 }
-                cursor = Directory.GetParent(cursor)?.FullName;
+                var parent = Directory.GetParent(cursor);
+                cursor = parent == null ? null : parent.FullName;
             }
-            Assert.False(string.IsNullOrEmpty(repoRoot), "Repository root (solution folder) not found");
+            if (string.IsNullOrEmpty(repoRoot)) Assert.False(true, "OneDriveService.cs not found in repository");
             var matches = Directory.GetFiles(repoRoot, "OneDriveService.cs", SearchOption.AllDirectories);
-            Assert.True(matches.Length > 0, "OneDriveService.cs not found in repository");
+            if (matches.Length == 0) Assert.False(true, "OneDriveService.cs not found in repository");
             var src = File.ReadAllText(matches[0]);
             Assert.DoesNotContain("HttpMethod.Post", src);
             Assert.DoesNotContain("HttpMethod.Put", src);

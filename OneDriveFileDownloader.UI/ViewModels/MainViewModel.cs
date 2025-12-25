@@ -20,16 +20,16 @@ namespace OneDriveFileDownloader.UI.ViewModels
         public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
         public ObservableCollection<DownloadRecord> RecentDownloads { get; } = new ObservableCollection<DownloadRecord>();
 
-        private string? _statusText;
-        public string? StatusText { get => _statusText; set => Set(ref _statusText, value); }
+        private string _statusText = string.Empty;
+        public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
 
-        private string? _userDisplayName;
-        public string? UserDisplayName { get => _userDisplayName; set => Set(ref _userDisplayName, value); }
+        private string _userDisplayName = string.Empty;
+        public string UserDisplayName { get => _userDisplayName; set => Set(ref _userDisplayName, value); }
 
-        private object? _userThumbnail;
-        public object? UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
+        private object _userThumbnail;
+        public object UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
-        public MainViewModel(IOneDriveService? svc = null, IDownloadRepository? repo = null)
+        public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null)
         {
             _svc = svc ?? new OneDriveFileDownloader.Core.Services.OneDriveService();
             _repo = repo ?? new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db"));
@@ -90,7 +90,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
             while (subfolders.Count > 0)
             {
                 var folder = subfolders.Dequeue();
-                var fakeShared = new SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+                var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
                 var children = await _svc.ListChildrenAsync(fakeShared);
                 foreach (var c in children)
                 {
@@ -119,7 +119,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
         {
             var node = new DriveItemNode(folder);
             // only populate immediate children for performance
-            var fakeShared = new SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+            var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
             var children = await _svc.ListChildrenAsync(fakeShared);
             foreach (var c in children)
             {
@@ -132,7 +132,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
         {
             if (node == null || !node.IsFolder) return;
             if (node.Children.Count > 0) return; // already expanded or leaf
-            var fakeShared = new SharedItemInfo { RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
+            var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
             var children = await _svc.ListChildrenAsync(fakeShared);
             foreach (var c in children)
             {
@@ -150,7 +150,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
             while (queue.Count > 0)
             {
                 var f = queue.Dequeue();
-                var fakeShared = new SharedItemInfo { RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
+                var fakeShared = new SharedItemInfo { Id = f.Id, RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
                 var children = await _svc.ListChildrenAsync(fakeShared);
                 foreach (var c in children)
                 {

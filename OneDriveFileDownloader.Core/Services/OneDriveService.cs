@@ -85,10 +85,10 @@ namespace OneDriveFileDownloader.Core.Services
                 {
                     if (!el.TryGetProperty("remoteItem", out var remote)) continue;
                     if (!remote.TryGetProperty("parentReference", out var parentRef)) continue;
-                    var driveId = parentRef.GetProperty("driveId").GetString();
-                    var itemId = remote.GetProperty("id").GetString();
-                    var id = el.GetProperty("id").GetString();
-                    var name = el.GetProperty("name").GetString();
+                    var driveId = parentRef.GetProperty("driveId").GetString() ?? throw new InvalidDataException("driveId missing from sharedWithMe response");
+                    var itemId = remote.GetProperty("id").GetString() ?? throw new InvalidDataException("item id missing from sharedWithMe response");
+                    var id = el.GetProperty("id").GetString() ?? throw new InvalidDataException("id missing from sharedWithMe response");
+                    var name = el.GetProperty("name").GetString() ?? string.Empty;
                     items.Add(new SharedItemInfo { Id = id, Name = name, RemoteDriveId = driveId, RemoteItemId = itemId });
                 }
             }
@@ -110,10 +110,10 @@ namespace OneDriveFileDownloader.Core.Services
             {
                 foreach (var el in arr.EnumerateArray())
                 {
-                    var id = el.GetProperty("id").GetString();
-                    var name = el.GetProperty("name").GetString();
+                    var id = el.GetProperty("id").GetString() ?? throw new InvalidDataException("child id missing from ListChildren response");
+                    var name = el.GetProperty("name").GetString() ?? string.Empty;
                     var size = el.TryGetProperty("size", out var s) ? s.GetInt64() : (long?)null;
-                    string? sha1 = null;
+                    string sha1 = string.Empty;
                     if (el.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hh))
                     {
                         sha1 = hh.GetString();
@@ -163,7 +163,7 @@ namespace OneDriveFileDownloader.Core.Services
             return profile;
         }
 
-        public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
+        public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long> progress = null, CancellationToken cancellation = default)
         {
             // use drive and item ids
             // download content via REST
@@ -188,7 +188,7 @@ namespace OneDriveFileDownloader.Core.Services
                 }
 
                 sha1.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                var hashBytes = sha1.Hash;
+                var hashBytes = sha1.Hash ?? Array.Empty<byte>();
                 var sha1Hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
                 destination.Seek(0, SeekOrigin.Begin);
@@ -205,12 +205,14 @@ namespace OneDriveFileDownloader.Core.Services
         {
             try
             {
+                if (_pca == null) throw new InvalidOperationException("Call Configure(clientId) before requesting tokens.");
                 var accounts = await _pca.GetAccountsAsync().ConfigureAwait(false);
                 var result = await _pca.AcquireTokenSilent(_scopes, accounts.FirstOrDefault()).ExecuteAsync().ConfigureAwait(false);
                 return result.AccessToken;
             }
             catch (MsalUiRequiredException)
             {
+                if (_pca == null) throw new InvalidOperationException("Call Configure(clientId) before requesting tokens.");
                 var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
                 {
                     Console.WriteLine(callback.Message);

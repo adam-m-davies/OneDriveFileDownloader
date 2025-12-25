@@ -16,8 +16,8 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             set => Set(ref _progress, value);
         }
 
-        private string? _status;
-        public string? Status
+        private string _status = string.Empty;
+        public string Status
         {
             get => _status;
             set => Set(ref _status, value);

@@ -8,8 +8,8 @@ namespace OneDriveFileDownloader.Console.Services
 
     internal class Settings
     {
-        public string? LastClientId { get; set; }
-        public string? LastDownloadFolder { get; set; }
+        public string LastClientId { get; set; } = string.Empty;
+        public string LastDownloadFolder { get; set; } = string.Empty;
         public UxOption SelectedUx { get; set; } = UxOption.Minimal;
     }
 

@@ -35,6 +35,6 @@ namespace OneDriveFileDownloader.Core.Interfaces
         /// Downloads the specified file to the destination stream. Returns a DownloadResult describing file metadata such as hash.
         /// Optionally reports progress in bytes read.
         /// </summary>
-        Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, System.IO.Stream destination, IProgress<long>? progress = null, System.Threading.CancellationToken cancellation = default);
+        Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, System.IO.Stream destination, IProgress<long> progress = null, System.Threading.CancellationToken cancellation = default);
     }
 }

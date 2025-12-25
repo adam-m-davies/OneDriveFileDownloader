@@ -3,17 +3,20 @@ using System;
 
 namespace OneDriveFileDownloader.WinUI.Converters
 {
-    public class SecondsToEtaConverter : IValueConverter
+    public class StatusToGlyphConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value == null) return string.Empty;
-            if (value is double d)
+            if (value is string s)
             {
-                if (double.IsNaN(d) || double.IsInfinity(d)) return string.Empty;
-                var ts = TimeSpan.FromSeconds(d);
-                if (ts.TotalHours >= 1) return ts.ToString("h\:mm\:ss");
-                return ts.ToString("m\:ss");
+                return s switch
+                {
+                    "Downloading" => "⏳",
+                    "Completed" => "✔",
+                    "Canceled" => "✖",
+                    "Error" => "⚠",
+                    _ => string.Empty,
+                };
             }
             return string.Empty;
         }

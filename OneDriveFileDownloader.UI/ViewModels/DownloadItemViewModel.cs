@@ -15,8 +15,8 @@ namespace OneDriveFileDownloader.UI.ViewModels
             set => Set(ref _progress, value);
         }
 
-        private string? _status;
-        public string? Status
+        private string _status;
+        public string Status
         {
             get => _status;
             set
@@ -52,8 +52,15 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
         public void Cancel() => _cancellation.Cancel();
 
+        private int _retryCount = 0;
+        public int RetryCount { get => _retryCount; private set => Set(ref _retryCount, value); }
+        public int MaxRetries { get; } = 3;
+        public bool IsRetryAllowed => RetryCount < MaxRetries;
+
         public void ResetForRetry()
         {
+            if (!IsRetryAllowed) return;
+            RetryCount = RetryCount + 1;
             try { _cancellation.Cancel(); } catch { }
             _cancellation = new CancellationTokenSource();
             Status = "Pending";

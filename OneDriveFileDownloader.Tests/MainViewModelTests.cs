@@ -44,7 +44,7 @@ namespace OneDriveFileDownloader.Tests
 
             var vm = new MainViewModel(svc, new FakeRepo());
             await vm.LoadSharedItemsAsync();
-            Assert.Equal(1, vm.SharedItems.Count);
+            Assert.Single(vm.SharedItems);
             await vm.ScanAsync(root);
             Assert.Equal(2, vm.Videos.Count);
         }
@@ -78,8 +78,8 @@ namespace OneDriveFileDownloader.Tests
             var vm = new MainViewModel(svc, repo);
 
             // seed repo with two records
-            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f1", FileName = "a.mp4", DownloadedAtUtc = System.DateTime.UtcNow.AddMinutes(-5) });
-            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f2", FileName = "b.mp4", DownloadedAtUtc = System.DateTime.UtcNow });
+            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f1", FileName = "a.mp4", Sha1Hash = "abcd", LocalPath = Path.Combine(Path.GetTempPath(), "a.mp4"), DownloadedAtUtc = System.DateTime.UtcNow.AddMinutes(-5) });
+            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f2", FileName = "b.mp4", Sha1Hash = "ef01", LocalPath = Path.Combine(Path.GetTempPath(), "b.mp4"), DownloadedAtUtc = System.DateTime.UtcNow });
 
             await vm.LoadRecentDownloadsAsync(10);
             Assert.Equal(2, vm.RecentDownloads.Count);
@@ -184,8 +184,10 @@ namespace OneDriveFileDownloader.Tests
             // allow next attempt to succeed
             failOnce = false;
             item.ResetForRetry();
+            Assert.True(item.IsRetryAllowed);
             await vm.DownloadAsync(item);
             Assert.Equal("Completed", item.Status);
+            Assert.Equal(1, item.RetryCount);
         }
     }
 }

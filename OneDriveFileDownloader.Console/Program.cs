@@ -13,7 +13,7 @@ class Program
         Console.WriteLine("OneDrive File Downloader sample (personal accounts).\n");
 
         var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
-        string? clientId = null;
+        string clientId = string.Empty;
         if (!string.IsNullOrEmpty(settings?.LastClientId))
         {
             Console.Write($"Use last used ClientId: {settings.LastClientId}? (Y/n): ");
@@ -77,7 +77,7 @@ class Program
         while (subfolders.Count > 0)
         {
             var folder = subfolders.Dequeue();
-            var fakeShared = new OneDriveFileDownloader.Core.Models.SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+            var fakeShared = new OneDriveFileDownloader.Core.Models.SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
             var children = await svc.ListChildrenAsync(fakeShared);
             foreach (var c in children)
             {

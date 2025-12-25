@@ -19,14 +19,14 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
         public ObservableCollection<SharedItemInfo> SharedItems { get; } = new ObservableCollection<SharedItemInfo>();
         public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
 
-        private string? _statusText;
-        public string? StatusText { get => _statusText; set => Set(ref _statusText, value); }
+        private string _statusText = string.Empty;
+        public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
 
-        private string? _userDisplayName;
-        public string? UserDisplayName { get => _userDisplayName; set => Set(ref _userDisplayName, value); }
+        private string _userDisplayName = string.Empty;
+        public string UserDisplayName { get => _userDisplayName; set => Set(ref _userDisplayName, value); }
 
-        private BitmapImage? _userThumbnail;
-        public BitmapImage? UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
+        private BitmapImage _userThumbnail;
+        public BitmapImage UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
         public MainViewModel()
         {
@@ -83,7 +83,7 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             while (subfolders.Count > 0)
             {
                 var folder = subfolders.Dequeue();
-                var fakeShared = new SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+                var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
                 var children = await _svc.ListChildrenAsync(fakeShared);
                 foreach (var c in children)
                 {
