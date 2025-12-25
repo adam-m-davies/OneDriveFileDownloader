@@ -8,9 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.0.0-rc1" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.0.0-rc1" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.0-rc1" />
+    <PackageReference Include="Avalonia" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.9" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.9" />
+    <!-- Explicitly pin SkiaSharp to satisfy Avalonia.Skia dependency and address CVE-2023-4863 -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
   </ItemGroup>
 
   <ItemGroup>

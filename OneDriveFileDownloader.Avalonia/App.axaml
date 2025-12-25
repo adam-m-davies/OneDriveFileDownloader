@@ -7,6 +7,7 @@
     <converters:SecondsToEtaConverter x:Key="SecondsToEtaConverter" />
     <converters:StatusToBrushConverter x:Key="StatusToBrushConverter" />
     <converters:BytesToBitmapConverter x:Key="BytesToBitmapConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
   </Application.Resources>
   <Application.Styles>
     <Styles />

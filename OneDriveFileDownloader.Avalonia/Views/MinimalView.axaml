@@ -14,9 +14,9 @@
             <TextBlock Text="{Binding EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" Width="60" VerticalAlignment="Center" />
             <TextBlock Text="{Binding SpeedBytesPerSecond, StringFormat='{}{0:N0} B/s'}" Width="100" VerticalAlignment="Center" />
             <TextBlock Text="{Binding Status}" Foreground="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Width="80" VerticalAlignment="Center" />
-            <Button Content="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
-            <Button Content="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
-            <Button Content="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" />
+            <Button Content="⏵" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" />
+            <Button Content="✖" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" />
+            <Button Content="🔁" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" />
           </StackPanel>
         </DataTemplate>
       </ListBox.ItemTemplate>

@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using OneDriveFileDownloader.Core.Services;
+using Avalonia.VisualTree;
 
 namespace OneDriveFileDownloader.Avalonia;
 
@@ -17,9 +18,46 @@ public partial class SettingsWindow : Window
 
 		BrowseBtn.Click += async (s, e) =>
 		{
-			var dlg = new OpenFolderDialog();
-			var res = await dlg.ShowAsync(this);
-			if (!string.IsNullOrEmpty(res)) FolderBox.Text = res;
+			// Use StorageProvider API when available (recommended). Fall back to OpenFolderDialog for compatibility.
+			try
+			{
+				var provider = this.StorageProvider ?? (this.GetVisualRoot() as TopLevel)?.StorageProvider;
+				string folderPath = null;
+				if (provider != null)
+				{
+					// Use reflection to call a folder-pick method if present (PickFolderAsync / TryPickFolderAsync / PickSingleFolderAsync)
+					var m = provider.GetType().GetMethod("PickFolderAsync") ?? provider.GetType().GetMethod("TryPickFolderAsync") ?? provider.GetType().GetMethod("PickSingleFolderAsync");
+					if (m != null)
+					{
+						var task = m.Invoke(provider, Array.Empty<object>()) as System.Threading.Tasks.Task;
+						if (task != null)
+						{
+							await task.ConfigureAwait(false);
+							var resultProp = task.GetType().GetProperty("Result");
+							var resObj = resultProp?.GetValue(task);
+							if (resObj != null)
+							{
+								var pathProp = resObj.GetType().GetProperty("Path") ?? resObj.GetType().GetProperty("FullPath") ?? resObj.GetType().GetProperty("LocalPath");
+								if (pathProp != null)
+									folderPath = pathProp.GetValue(resObj) as string;
+								else
+									folderPath = resObj.ToString();
+							}
+						}
+					}
+				}
+
+				if (string.IsNullOrEmpty(folderPath))
+				{
+					// fallback
+					var dlg = new OpenFolderDialog();
+					var res = await dlg.ShowAsync(this);
+					folderPath = res;
+				}
+
+				if (!string.IsNullOrEmpty(folderPath)) FolderBox.Text = folderPath;
+			}
+			catch { /* ignore user cancellation or failures */ }
 		};
 
 		SaveBtn.Click += (s, e) =>
