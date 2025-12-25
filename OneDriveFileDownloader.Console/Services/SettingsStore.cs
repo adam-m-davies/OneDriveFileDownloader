@@ -4,10 +4,13 @@ using System.Text.Json;
 
 namespace OneDriveFileDownloader.Console.Services
 {
+    internal enum UxOption { Minimal = 1, Dashboard = 2, Explorer = 3 }
+
     internal class Settings
     {
         public string? LastClientId { get; set; }
         public string? LastDownloadFolder { get; set; }
+        public UxOption SelectedUx { get; set; } = UxOption.Minimal;
     }
 
     internal static class SettingsStore

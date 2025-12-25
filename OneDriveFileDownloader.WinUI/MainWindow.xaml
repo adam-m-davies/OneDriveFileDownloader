@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:local="using:OneDriveFileDownloader.WinUI"
+    xmlns:vm="using:OneDriveFileDownloader.WinUI.ViewModels"
     RequestedTheme="Light"
     IsBackButtonVisible="Collapsed"
     PaneDisplayMode="Left"
@@ -17,9 +18,9 @@
             </Grid.ColumnDefinitions>
             <TextBlock Text="OneDrive File Downloader" VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" />
             <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center" Margin="8">
-                <Image x:Name="UserThumbnail" Width="32" Height="32" Visibility="Collapsed" Margin="0,0,8,0" />
-                <TextBlock x:Name="UserName" VerticalAlignment="Center" />
-                <Button x:Name="SignInButton" Content="Sign in" Margin="12,0,0,0" Click="SignInButton_Click" />
+                <Image Width="32" Height="32" Visibility="Collapsed" Margin="0,0,8,0" Source="{Binding UserThumbnail}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding UserDisplayName}" />
+                <Button Content="Sign in" Margin="12,0,0,0" Click="SignInButton_Click" />
             </StackPanel>
         </Grid>
     </muxc:NavigationView.Header>
@@ -38,17 +39,27 @@
         <!-- Left: shared items -->
         <StackPanel Grid.Column="0" Margin="8">
             <TextBlock Text="Shared items" FontWeight="SemiBold" />
-            <ListView x:Name="SharedItemsList" SelectionChanged="SharedItemsList_SelectionChanged" />
-            <Button x:Name="ScanButton" Content="Scan for videos" Click="ScanButton_Click" Margin="0,8,0,0" />
+            <ListView ItemsSource="{Binding SharedItems}" x:Name="SharedItemsList" SelectionChanged="SharedItemsList_SelectionChanged" DisplayMemberPath="Name" />
+            <Button Content="Scan for videos" Click="ScanButton_Click" Margin="0,8,0,0" />
         </StackPanel>
 
         <!-- Right: videos and actions -->
         <StackPanel Grid.Column="1" Margin="8">
             <TextBlock Text="Videos" FontWeight="SemiBold" />
-            <ListView x:Name="VideosList" Height="300" />
+            <ListView ItemsSource="{Binding Videos}" x:Name="VideosList" Height="300" IsItemClickEnabled="True" SelectionMode="Single" ItemClick="VideosList_ItemClick">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DownloadItemViewModel">
+                        <StackPanel Orientation="Horizontal" Padding="6">
+                            <TextBlock Text="{x:Bind File.Name}" Width="320" />
+                            <ProgressBar Value="{x:Bind Progress}" Width="150" Margin="8,0,0,0" />
+                            <TextBlock Text="{x:Bind Status}" Margin="8,0,0,0" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <Button x:Name="DownloadSelectedButton" Content="Download Selected" Click="DownloadSelectedButton_Click" />
-                <TextBlock x:Name="StatusText" Margin="12,6,0,0" VerticalAlignment="Center" />
+                <Button Content="Download Selected" Click="DownloadSelectedButton_Click" />
+                <TextBlock Text="{Binding StatusText}" Margin="12,6,0,0" VerticalAlignment="Center" />
             </StackPanel>
         </StackPanel>
     </Grid>
