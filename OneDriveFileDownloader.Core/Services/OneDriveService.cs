@@ -138,45 +138,88 @@ namespace OneDriveFileDownloader.Core.Services
 			// call the "sharedWithMe" function via the SDK if available; otherwise retrieve via raw endpoint
 			// call Graph REST endpoint to get items shared with me
 			var token = await EnsureAccessTokenAsync();
-			using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://graph.microsoft.com/v1.0/me/drive/sharedWithMe");
-			req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-			var res = await _http.SendAsync(req);
-			res.EnsureSuccessStatusCode();
-			var raw = await res.Content.ReadAsStringAsync();
-			using var doc = System.Text.Json.JsonDocument.Parse(raw);
-			if (doc.RootElement.TryGetProperty("value", out var arr))
-			{
-				foreach (var el in arr.EnumerateArray())
-				{
-					if (!el.TryGetProperty("remoteItem", out var remote)) continue;
-					if (!remote.TryGetProperty("parentReference", out var parentRef)) continue;
-					var driveId = parentRef.GetProperty("driveId").GetString() ?? throw new InvalidDataException("driveId missing from sharedWithMe response");
-					var itemId = remote.GetProperty("id").GetString() ?? throw new InvalidDataException("item id missing from sharedWithMe response");
-					var id = el.GetProperty("id").GetString() ?? throw new InvalidDataException("id missing from sharedWithMe response");
-					var name = remote.TryGetProperty("name", out var n) ? n.GetString() : (el.TryGetProperty("name", out var n2) ? n2.GetString() : string.Empty);
-					
-					var isFolder = remote.TryGetProperty("folder", out _);
-					long? size = remote.TryGetProperty("size", out var s) ? s.GetInt64() : (long?)null;
-					string sha1 = string.Empty;
-					if (remote.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hh))
-					{
-						sha1 = hh.GetString();
-					}
+			if (string.IsNullOrEmpty(token)) throw new InvalidOperationException("Unable to acquire access token to list shared items.");
+			var requestUrl = "https://graph.microsoft.com/v1.0/me/drive/sharedWithMe";
 
-					items.Add(new SharedItemInfo 
-					{ 
-						Id = id, 
-						Name = name, 
-						RemoteDriveId = driveId, 
-						RemoteItemId = itemId,
-						IsFolder = isFolder,
-						Size = size,
-						Sha1Hash = sha1
-					});
+			while (!string.IsNullOrEmpty(requestUrl))
+			{
+				using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, requestUrl);
+				req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+				var res = await _http.SendAsync(req);
+				res.EnsureSuccessStatusCode();
+				var raw = await res.Content.ReadAsStringAsync();
+				using var doc = System.Text.Json.JsonDocument.Parse(raw);
+				if (doc.RootElement.TryGetProperty("value", out var arr))
+				{
+					foreach (var el in arr.EnumerateArray())
+					{
+						if (!el.TryGetProperty("remoteItem", out var remote)) continue;
+						var driveId = TryGetDriveId(remote);
+						if (string.IsNullOrEmpty(driveId)) continue;
+						if (!remote.TryGetProperty("id", out var remoteIdProp)) continue;
+						var remoteId = remoteIdProp.GetString();
+						if (string.IsNullOrEmpty(remoteId)) continue;
+						var sharedId = el.TryGetProperty("id", out var sharedIdProp) ? sharedIdProp.GetString() : null;
+						var itemId = remoteId;
+						var name = GetName(el, remote);
+						var isFolder = remote.TryGetProperty("folder", out _) || !remote.TryGetProperty("file", out _);
+						long? size = remote.TryGetProperty("size", out var sizeProp) ? sizeProp.GetInt64() : (long?)null;
+						var sha1 = string.Empty;
+						if (remote.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hash))
+						{
+							sha1 = hash.GetString() ?? string.Empty;
+						}
+
+						items.Add(new SharedItemInfo
+						{
+							Id = sharedId ?? itemId,
+							Name = name,
+							RemoteDriveId = driveId,
+							RemoteItemId = itemId,
+							IsFolder = isFolder,
+							Size = size,
+							Sha1Hash = sha1
+						});
+					}
+				}
+
+				if (doc.RootElement.TryGetProperty("@odata.nextLink", out var nextLink) && nextLink.ValueKind == System.Text.Json.JsonValueKind.String)
+				{
+					requestUrl = nextLink.GetString();
+				}
+				else
+				{
+					requestUrl = null;
 				}
 			}
 
 			return items;
+
+			static string? TryGetDriveId(System.Text.Json.JsonElement remote)
+			{
+				if (remote.TryGetProperty("driveId", out var directDrive) && directDrive.ValueKind == System.Text.Json.JsonValueKind.String)
+				{
+					return directDrive.GetString();
+				}
+				if (remote.TryGetProperty("parentReference", out var parent) && parent.TryGetProperty("driveId", out var parentDrive) && parentDrive.ValueKind == System.Text.Json.JsonValueKind.String)
+				{
+					return parentDrive.GetString();
+				}
+				return null;
+			}
+
+			static string GetName(System.Text.Json.JsonElement sharedElement, System.Text.Json.JsonElement remote)
+			{
+				if (remote.TryGetProperty("name", out var remoteName) && remoteName.ValueKind == System.Text.Json.JsonValueKind.String)
+				{
+					return remoteName.GetString() ?? string.Empty;
+				}
+				if (sharedElement.TryGetProperty("name", out var topName) && topName.ValueKind == System.Text.Json.JsonValueKind.String)
+				{
+					return topName.GetString() ?? string.Empty;
+				}
+				return string.Empty;
+			}
 		}
 
 		public async Task<IList<DriveItemInfo>> ListChildrenAsync(SharedItemInfo sharedItem)

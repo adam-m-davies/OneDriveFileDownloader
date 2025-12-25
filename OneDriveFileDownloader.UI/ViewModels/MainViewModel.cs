@@ -123,11 +123,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 				{
 					IsAuthenticated = true;
 					var prof = await _svc.GetUserProfileAsync();
-					UserDisplayName = prof.DisplayName;
-					if (prof.ThumbnailBytes != null && prof.ThumbnailBytes.Length > 0)
-					{
-						UserThumbnail = prof.ThumbnailBytes;
-					}
+					ApplyUserProfile(prof);
 					await LoadSharedItemsAsync();
 				}
 			}
@@ -178,11 +174,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			}
 
 			var prof = await _svc.GetUserProfileAsync();
-			UserDisplayName = prof.DisplayName;
-			if (prof.ThumbnailBytes != null && prof.ThumbnailBytes.Length > 0)
-			{
-				UserThumbnail = prof.ThumbnailBytes;
-			}
+			ApplyUserProfile(prof);
 
 			await LoadSharedItemsAsync();
 		}
@@ -191,17 +183,24 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		{
 			SharedItems.Clear();
 			FolderRoots.Clear();
+
 			var items = await _svc.ListSharedWithMeAsync();
 			foreach (var s in items) SharedItems.Add(s);
 			StatusText = SharedItems.Count == 0 ? "No shared items found." : $"Found {SharedItems.Count} shared items.";
 
-			if (SharedItems.Count > 0)
+			foreach (var s in SharedItems)
 			{
-				foreach (var s in SharedItems)
-				{
-					var node = await BuildFolderNodeAsync(s);
-					FolderRoots.Add(node);
-				}
+				var node = await BuildFolderNodeAsync(s);
+				FolderRoots.Add(node);
+			}
+		}
+
+		private void ApplyUserProfile(UserProfile profile)
+		{
+			UserDisplayName = profile.DisplayName;
+			if (profile.ThumbnailBytes != null && profile.ThumbnailBytes.Length > 0)
+			{
+				UserThumbnail = profile.ThumbnailBytes;
 			}
 		}
 
@@ -248,7 +247,6 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			if (node.IsFolder)
 			{
 				node.OnExpanded += async () => await ExpandNodeAsync(node);
-				await ExpandNodeAsync(node);
 			}
 			return node;
 		}
@@ -256,8 +254,16 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public async Task ExpandNodeAsync(DriveItemNode node)
 		{
 			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name, IsFolder = true };
-			var children = await _svc.ListChildrenAsync(fakeShared);
-			
+			IList<DriveItemInfo> children;
+			try
+			{
+				children = await _svc.ListChildrenAsync(fakeShared);
+			}
+			catch
+			{
+				children = Array.Empty<DriveItemInfo>();
+			}
+
 			// Use Dispatcher to update collection if needed, but for now assume UI thread
 			node.Children.Clear();
 			foreach (var c in children.Where(x => x.IsFolder))
