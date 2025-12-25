@@ -19,6 +19,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
         public ObservableCollection<SharedItemInfo> SharedItems { get; } = new ObservableCollection<SharedItemInfo>();
         public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
+        public ObservableCollection<DownloadRecord> RecentDownloads { get; } = new ObservableCollection<DownloadRecord>();
 
         private string? _statusText;
         public string? StatusText { get => _statusText; set => Set(ref _statusText, value); }
@@ -106,6 +107,59 @@ namespace OneDriveFileDownloader.UI.ViewModels
         public Task<IList<DriveItemInfo>> GetChildrenAsync(SharedItemInfo shared)
         {
             return _svc.ListChildrenAsync(shared);
+        }
+
+        public async Task LoadRecentDownloadsAsync(int count = 20)
+        {
+            RecentDownloads.Clear();
+            var recs = await _repo.GetRecentAsync(count);
+            foreach (var r in recs) RecentDownloads.Add(r);
+        }
+
+        public async Task<DriveItemNode> BuildFolderNodeAsync(DriveItemInfo folder)
+        {
+            var node = new DriveItemNode(folder);
+            // only populate immediate children for performance
+            var fakeShared = new SharedItemInfo { RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+            var children = await _svc.ListChildrenAsync(fakeShared);
+            foreach (var c in children)
+            {
+                node.Children.Add(new DriveItemNode(c));
+            }
+            return node;
+        }
+
+        public async Task ExpandNodeAsync(DriveItemNode node)
+        {
+            if (node == null || !node.IsFolder) return;
+            if (node.Children.Count > 0) return; // already expanded or leaf
+            var fakeShared = new SharedItemInfo { RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
+            var children = await _svc.ListChildrenAsync(fakeShared);
+            foreach (var c in children)
+            {
+                node.Children.Add(new DriveItemNode(c));
+            }
+            node.IsExpanded = true;
+        }
+
+        public async Task<IList<DownloadItemViewModel>> ScanFolderAsync(DriveItemInfo folder)
+        {
+            var results = new System.Collections.Generic.List<DownloadItemViewModel>();
+            var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
+            var queue = new System.Collections.Generic.Queue<DriveItemInfo>();
+            queue.Enqueue(folder);
+            while (queue.Count > 0)
+            {
+                var f = queue.Dequeue();
+                var fakeShared = new SharedItemInfo { RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
+                var children = await _svc.ListChildrenAsync(fakeShared);
+                foreach (var c in children)
+                {
+                    if (c.IsFolder) queue.Enqueue(c);
+                    else if (videoExts.Any(e => c.Name.EndsWith(e, System.StringComparison.OrdinalIgnoreCase))) results.Add(new DownloadItemViewModel(c));
+                }
+            }
+            return results;
         }
 
         public async Task DownloadAsync(DownloadItemViewModel item)

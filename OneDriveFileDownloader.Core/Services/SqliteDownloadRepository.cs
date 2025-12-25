@@ -65,6 +65,30 @@ VALUES ($id, $fileId, $sha1Hash, $fileName, $size, $downloadedAtUtc, $localPath)
             return false;
         }
 
+        public async Task<IList<DownloadRecord>> GetRecentAsync(int count = 20)
+        {
+            var list = new System.Collections.Generic.List<DownloadRecord>();
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT id, fileId, sha1Hash, fileName, size, downloadedAtUtc, localPath FROM downloads ORDER BY downloadedAtUtc DESC LIMIT $count";
+            cmd.Parameters.AddWithValue("$count", count);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var rec = new DownloadRecord
+                {
+                    Id = Guid.TryParse(reader.GetString(0), out var gid) ? gid : Guid.NewGuid(),
+                    FileId = reader.GetString(1),
+                    Sha1Hash = reader.GetString(2),
+                    FileName = reader.GetString(3),
+                    Size = reader.IsDBNull(4) ? null : (long?)reader.GetInt64(4),
+                    DownloadedAtUtc = DateTime.Parse(reader.GetString(5)),
+                    LocalPath = reader.GetString(6)
+                };
+                list.Add(rec);
+            }
+            return list;
+        }
+
         public void Dispose()
         {
             _connection?.Dispose();

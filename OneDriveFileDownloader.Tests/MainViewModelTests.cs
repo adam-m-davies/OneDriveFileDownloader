@@ -42,13 +42,21 @@ namespace OneDriveFileDownloader.Tests
         class FakeRepo : IDownloadRepository
         {
             public List<DownloadRecord> Added = new List<DownloadRecord>();
+            public List<DownloadRecord> Stored = new List<DownloadRecord>();
             public Task AddRecordAsync(DownloadRecord record)
             {
                 Added.Add(record);
+                Stored.Add(record);
                 return Task.CompletedTask;
             }
 
             public Task<bool> HasHashAsync(string sha1Hash) => Task.FromResult(false);
+
+            public Task<IList<DownloadRecord>> GetRecentAsync(int count = 20)
+            {
+                IList<DownloadRecord> list = Stored.OrderByDescending(r => r.DownloadedAtUtc).Take(count).ToList();
+                return Task.FromResult(list);
+            }
         }
 
         [Fact]
@@ -86,6 +94,54 @@ namespace OneDriveFileDownloader.Tests
             Assert.Equal("Completed", item.Status);
             Assert.Single(repo.Added);
             Assert.Equal(file.Id, repo.Added[0].FileId);
+        }
+
+        [Fact]
+        public async Task LoadRecentDownloads_PopulatesRecentDownloads()
+        {
+            var svc = new FakeOneDriveService();
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+
+            // seed repo with two records
+            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f1", FileName = "a.mp4", DownloadedAtUtc = System.DateTime.UtcNow.AddMinutes(-5) });
+            repo.Stored.Add(new DownloadRecord { Id = Guid.NewGuid(), FileId = "f2", FileName = "b.mp4", DownloadedAtUtc = System.DateTime.UtcNow });
+
+            await vm.LoadRecentDownloadsAsync(10);
+            Assert.Equal(2, vm.RecentDownloads.Count);
+            Assert.Equal("b.mp4", vm.RecentDownloads[0].FileName);
+        }
+
+        [Fact]
+        public async Task Explorer_BuildAndExpand_PopulatesChildren()
+        {
+            var svc = new FakeOneDriveService();
+            // create folder structure
+            var rootFolder = new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "root", IsFolder = true };
+            svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
+            svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
+
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+
+            var node = await vm.BuildFolderNodeAsync(rootFolder);
+            Assert.Equal(2, node.Children.Count);
+
+            var subNode = node.Children[1];
+            await vm.ExpandNodeAsync(subNode);
+            Assert.Single(subNode.Children);
+        }
+
+        [Fact]
+        public async Task Explorer_ScanFolderRecursively_FindsVideos()
+        {
+            var svc = new FakeOneDriveService();
+            svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
+            svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+            var results = await vm.ScanFolderAsync(new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "fold1", IsFolder = true });
+            Assert.Equal(2, results.Count);
         }
     }
 }
