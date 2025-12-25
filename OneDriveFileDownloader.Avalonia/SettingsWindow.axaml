@@ -11,6 +11,13 @@
       <TextBox Name="FolderBox" Width="350" />
       <Button Name="BrowseBtn" Content="Browse" />
     </StackPanel>
+    <TextBlock Text="UI Experience" />
+    <ComboBox Name="UxBox" SelectedIndex="0">
+      <ComboBoxItem Content="Minimal" />
+      <ComboBoxItem Content="Dashboard" />
+      <ComboBoxItem Content="Explorer" />
+    </ComboBox>
+    <Button Name="ClearClientBtn" Content="Clear saved Client ID" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
       <Button Name="SaveBtn" Content="Save" />
       <Button Name="CancelBtn" Content="Cancel" />

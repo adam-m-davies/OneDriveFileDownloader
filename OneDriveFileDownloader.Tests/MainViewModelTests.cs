@@ -10,10 +10,11 @@ using System.Threading;
 
 namespace OneDriveFileDownloader.Tests
 {
+	[Collection("SettingsStore")]
 	public class MainViewModelTests
 	{
 
-		class FakeRepo : IDownloadRepository
+		public class FakeRepo : IDownloadRepository
 		{
 			public List<DownloadRecord> Added = new List<DownloadRecord>();
 			public List<DownloadRecord> Stored = new List<DownloadRecord>();
@@ -148,17 +149,23 @@ namespace OneDriveFileDownloader.Tests
             var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 4096 * 10 };
             var item = new DownloadItemViewModel(file);
 
-			// ensure settings have a download folder
-			var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
-			settings.LastDownloadFolder = Path.GetTempPath();
-			OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
+            // ensure settings have a download folder and use a unique temp settings file for isolation
+            var temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Guid.NewGuid().ToString() + "-odfd-download-settings.json");
+            OneDriveFileDownloader.Core.Services.SettingsStore.TestFilePathOverride = temp;
+            if (System.IO.File.Exists(temp)) System.IO.File.Delete(temp);
+            var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
+            settings.LastDownloadFolder = System.IO.Path.GetTempPath();
+            OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
 
 			var t = vm.DownloadAsync(item);
-			await Task.Delay(50);
+			await Task.Delay(200);
 			item.Cancel();
 			await Task.WhenAny(t, Task.Delay(2000));
 
 			Assert.Equal("Canceled", item.Status);
+			// cleanup
+			if (System.IO.File.Exists(temp)) System.IO.File.Delete(temp);
+			OneDriveFileDownloader.Core.Services.SettingsStore.TestFilePathOverride = null;
 		}
 
 		[Fact]

@@ -18,6 +18,8 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
 		public ObservableCollection<SharedItemInfo> SharedItems { get; } = new ObservableCollection<SharedItemInfo>();
 		public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
+		private DownloadItemViewModel? _selectedVideo;
+		public DownloadItemViewModel? SelectedVideo { get => _selectedVideo; set => Set(ref _selectedVideo, value); }
 		public ObservableCollection<DownloadRecord> RecentDownloads { get; } = new ObservableCollection<DownloadRecord>();
 
 		public ObservableCollection<DriveItemNode> FolderRoots { get; } = new ObservableCollection<DriveItemNode>();
@@ -26,6 +28,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public RelayCommand CancelCommand { get; }
 		public RelayCommand RetryCommand { get; }
 		public RelayCommand OpenDownloadsCommand { get; }
+		public RelayCommand ScanLastCommand { get; }
 
 		private string _statusText = string.Empty;
 		public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
@@ -51,6 +54,11 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			CancelCommand = new RelayCommand(p => { if (p is DownloadItemViewModel i) i.Cancel(); });
 			RetryCommand = new RelayCommand(async p => { if (p is DownloadItemViewModel i) { i.ResetForRetry(); await DownloadAsync(i); } });
 			OpenDownloadsCommand = new RelayCommand(p => { if (!string.IsNullOrEmpty(_settings.LastDownloadFolder)) OpenFolder(_settings.LastDownloadFolder); });
+		ScanLastCommand = new RelayCommand(async p => {
+			if (SharedItems.Count == 0) await LoadSharedItemsAsync();
+			if (SharedItems.Count == 0) { StatusText = "No shared items available to scan."; return; }
+			await ScanAsync(SharedItems[0]);
+		});
 		}
 
 		public async Task SignInAsync(string clientId, bool save)

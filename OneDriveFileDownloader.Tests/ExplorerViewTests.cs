@@ -11,6 +11,7 @@ using OneDriveFileDownloader.Core.Models;
 
 namespace OneDriveFileDownloader.Tests
 {
+    [Collection("SettingsStore")]
     public class ExplorerViewTests
     {
         class FakeRepo : OneDriveFileDownloader.Core.Interfaces.IDownloadRepository
@@ -39,6 +40,13 @@ namespace OneDriveFileDownloader.Tests
             var svc = new FakeOneDriveService();
             svc.Children["fold1"] = new System.Collections.Generic.List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false } };
             var repo = new FakeRepo();
+            // ensure settings use a temp folder for downloads and do not interfere with other tests
+            var temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Guid.NewGuid().ToString() + "-odfd-explorer-settings.json");
+            OneDriveFileDownloader.Core.Services.SettingsStore.TestFilePathOverride = temp;
+            var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
+            settings.LastDownloadFolder = System.IO.Path.GetTempPath();
+            OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
+
             var vm = new MainViewModel(svc, repo);
 
             // simulate the double-click behavior by invoking the viewmodel download directly (avoids platform-dependent UI startup in tests)
@@ -48,6 +56,10 @@ namespace OneDriveFileDownloader.Tests
 
             Assert.Single(repo.Added);
             Assert.Equal("f1", repo.Added[0].FileId);
+
+            // cleanup
+            if (System.IO.File.Exists(temp)) System.IO.File.Delete(temp);
+            OneDriveFileDownloader.Core.Services.SettingsStore.TestFilePathOverride = null;
         }
     }
 }

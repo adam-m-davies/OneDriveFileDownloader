@@ -6,6 +6,7 @@
     <TextBlock Text="Dashboard" FontSize="18" FontWeight="Bold" />
     <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
       <Button Content="Open downloads folder" Command="{Binding OpenDownloadsCommand}" />
+      <Button Content="Scan last shared item" Command="{Binding ScanLastCommand}" Margin="8,0,0,0" />
     </StackPanel>
     <ListBox ItemsSource="{Binding RecentDownloads}" Height="300">
       <ListBox.ItemTemplate>

@@ -17,13 +17,18 @@ namespace OneDriveFileDownloader.Core.Services
 	{
 		private static readonly string AppFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OneDriveFileDownloader");
 		private static readonly string FilePath = Path.Combine(AppFolder, "settings.json");
+		// Tests can override this path to avoid clobbering a shared settings file during parallel test runs
+		internal static string? TestFilePathOverride { get; set; }
+
+		private static string GetFilePath() => TestFilePathOverride ?? FilePath;
 
 		public static Settings Load()
 		{
 			try
 			{
-				if (!File.Exists(FilePath)) return new Settings();
-				var txt = File.ReadAllText(FilePath);
+				var fp = GetFilePath();
+				if (!File.Exists(fp)) return new Settings();
+				var txt = File.ReadAllText(fp);
 				return JsonSerializer.Deserialize<Settings>(txt) ?? new Settings();
 			}
 			catch
@@ -36,9 +41,10 @@ namespace OneDriveFileDownloader.Core.Services
 		{
 			try
 			{
-				Directory.CreateDirectory(AppFolder);
+				var fp = GetFilePath();
+				Directory.CreateDirectory(Path.GetDirectoryName(fp) ?? AppFolder);
 				var txt = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-				File.WriteAllText(FilePath, txt);
+				File.WriteAllText(fp, txt);
 			}
 			catch
 			{
@@ -58,6 +64,14 @@ namespace OneDriveFileDownloader.Core.Services
 			{
 				// ignore write failures
 			}
+		}
+
+		// Testing helper: try to save and return whether the file was written
+		internal static bool TrySave(Settings settings)
+		{
+			Save(settings);
+			var fp = GetFilePath();
+			return File.Exists(fp);
 		}
 	}
 }

@@ -3,12 +3,14 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using OneDriveFileDownloader.UI.ViewModels;
 using OneDriveFileDownloader.Avalonia.Views;
+using OneDriveFileDownloader.Core.Services;
 
 namespace OneDriveFileDownloader.Avalonia;
 
 public partial class MainWindow : Window
 {
 	private MainViewModel _vm;
+	private Settings _settings;
 
 	public MainWindow()
 	{
@@ -21,8 +23,21 @@ public partial class MainWindow : Window
 		ExplorerBtn.Click += ExplorerBtn_Click;
 		SettingsBtn.Click += SettingsBtn_Click;
 
-		// show Minimal view on startup
-		MainContent.Content = new MinimalView { DataContext = _vm };
+		// show configured UX on startup
+		switch (_settings.SelectedUx)
+		{
+			case UxOption.Dashboard:
+				MainContent.Content = new DashboardView { DataContext = _vm };
+				_ = _vm.LoadRecentDownloadsAsync();
+				break;
+			case UxOption.Explorer:
+				MainContent.Content = new ExplorerView { DataContext = _vm };
+				_ = _vm.LoadSharedItemsAsync();
+				break;
+			default:
+				MainContent.Content = new MinimalView { DataContext = _vm };
+				break;
+		}
 	}
 
 	public void InitializeComponent()

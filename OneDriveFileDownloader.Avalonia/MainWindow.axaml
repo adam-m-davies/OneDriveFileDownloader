@@ -14,5 +14,8 @@
       <Button Name="SettingsBtn" Content="Settings" Margin="8,0,0,0" />
     </StackPanel>
     <ContentControl Name="MainContent" />
+    <Border DockPanel.Dock="Bottom" Background="Transparent" Padding="8">
+      <TextBlock Text="{Binding StatusText}" Name="StatusTextBlock" />
+    </Border>
   </DockPanel>
 </Window>

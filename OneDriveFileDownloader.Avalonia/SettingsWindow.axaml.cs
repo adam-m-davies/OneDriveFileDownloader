@@ -60,9 +60,13 @@ public partial class SettingsWindow : Window
 			catch { /* ignore user cancellation or failures */ }
 		};
 
+		ClearClientBtn.Click += (s, e) => { ClientIdBox.Text = string.Empty; };
+
 		SaveBtn.Click += (s, e) =>
 		{
-			var s2 = new Settings { LastClientId = ClientIdBox.Text?.Trim() ?? string.Empty, LastDownloadFolder = FolderBox.Text?.Trim() ?? string.Empty };
+			// read Selected UX from UxBox
+			var ux = UxBox.SelectedIndex switch { 1 => UxOption.Dashboard, 2 => UxOption.Explorer, _ => UxOption.Minimal };
+			var s2 = new Settings { LastClientId = ClientIdBox.Text?.Trim() ?? string.Empty, LastDownloadFolder = FolderBox.Text?.Trim() ?? string.Empty, SelectedUx = ux };
 			SettingsStore.Save(s2);
 			Close();
 		};
