@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [ master, UI-Enhancement-Branch ]
-  pull_request:
     branches: [ master ]
 
 jobs:
