@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OneDriveFileDownloader.Core\OneDriveFileDownloader.Core.csproj" />
+    <ProjectReference Include="..\OneDriveFileDownloader.UI\OneDriveFileDownloader.UI.csproj" />
   </ItemGroup>
 
 </Project>

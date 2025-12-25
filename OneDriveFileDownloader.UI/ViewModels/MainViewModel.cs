@@ -1,19 +1,20 @@
+using OneDriveFileDownloader.Core.Interfaces;
 using OneDriveFileDownloader.Core.Models;
-using OneDriveFileDownloader.Core.Services;
-
 using System;
 using System.Collections.ObjectModel;
+using OneDriveFileDownloader.Core.Services;
+using OneDriveFileDownloader.Core.Interfaces;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System.Threading;
 
-namespace OneDriveFileDownloader.WinUI.ViewModels
+namespace OneDriveFileDownloader.UI.ViewModels
 {
     public class MainViewModel : ViewModelBase
     {
-        private readonly OneDriveService _svc = new OneDriveService();
+        private readonly IOneDriveService _svc;
+        private readonly IDownloadRepository _repo;
         private readonly Settings _settings;
 
         public ObservableCollection<SharedItemInfo> SharedItems { get; } = new ObservableCollection<SharedItemInfo>();
@@ -25,13 +26,15 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
         private string? _userDisplayName;
         public string? UserDisplayName { get => _userDisplayName; set => Set(ref _userDisplayName, value); }
 
-        private BitmapImage? _userThumbnail;
-        public BitmapImage? UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
+        private object? _userThumbnail;
+        public object? UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
-        public MainViewModel()
+        public MainViewModel(IOneDriveService? svc = null, IDownloadRepository? repo = null)
         {
+            _svc = svc ?? new OneDriveFileDownloader.Core.Services.OneDriveService();
+            _repo = repo ?? new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db"));
             _settings = SettingsStore.Load();
-            // if we have saved client id, auto-configure but do not authenticate
+
             if (!string.IsNullOrEmpty(_settings.LastClientId))
             {
                 _svc.Configure(_settings.LastClientId);
@@ -52,10 +55,14 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             if (prof.ThumbnailBytes != null && prof.ThumbnailBytes.Length > 0)
             {
                 var ms = new MemoryStream(prof.ThumbnailBytes);
-                var bmp = new BitmapImage();
+#if WINDOWS
+                var bmp = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
                 ms.Position = 0;
-                await bmp.SetSourceAsync(ms.AsRandomAccessStream());
+                _ = bmp.SetSourceAsync(ms.AsRandomAccessStream());
                 UserThumbnail = bmp;
+#else
+                UserThumbnail = prof.ThumbnailBytes; // non-Windows test environments can use raw bytes
+#endif
             }
 
             await LoadSharedItemsAsync();
@@ -96,6 +103,11 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             StatusText = $"Found {videos.Count} video files.";
         }
 
+        public Task<IList<DriveItemInfo>> GetChildrenAsync(SharedItemInfo shared)
+        {
+            return _svc.ListChildrenAsync(shared);
+        }
+
         public async Task DownloadAsync(DownloadItemViewModel item)
         {
             if (item == null) return;
@@ -107,10 +119,8 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             }
 
             Directory.CreateDirectory(downloads);
-            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db");
-            using var repo = new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(dbPath);
 
-            if (!string.IsNullOrEmpty(item.File.Sha1Hash) && await repo.HasHashAsync(item.File.Sha1Hash))
+            if (!string.IsNullOrEmpty(item.File.Sha1Hash) && await _repo.HasHashAsync(item.File.Sha1Hash))
             {
                 item.Status = "Already downloaded";
                 return;
@@ -119,17 +129,14 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             item.Status = "Downloading";
             var temp = Path.GetTempFileName();
 
-            long totalRead = 0;
             var progress = new Progress<long>(bytes =>
             {
-                totalRead = bytes;
                 if (item.File.Size.HasValue && item.File.Size.Value > 0)
                 {
                     item.Progress = Math.Min(100.0, (bytes / (double)item.File.Size.Value) * 100.0);
                 }
                 else
                 {
-                    // unknown size: approximate
                     item.Progress = Math.Min(100.0, item.Progress + 5);
                 }
             });
@@ -139,8 +146,7 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
                 using (var fs = File.Create(temp))
                 {
                     var dl = await _svc.DownloadFileAsync(item.File, fs, progress);
-                    // check duplicate
-                    if (!string.IsNullOrEmpty(dl.Sha1Hash) && await repo.HasHashAsync(dl.Sha1Hash))
+                    if (!string.IsNullOrEmpty(dl.Sha1Hash) && await _repo.HasHashAsync(dl.Sha1Hash))
                     {
                         fs.Close();
                         File.Delete(temp);
@@ -156,7 +162,7 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
                     fs.Close();
                     File.Move(temp, dest);
 
-                    var rec = new OneDriveFileDownloader.Core.Models.DownloadRecord
+                    var rec = new DownloadRecord
                     {
                         FileId = item.File.Id,
                         Sha1Hash = dl.Sha1Hash,
@@ -164,7 +170,7 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
                         Size = dl.Size,
                         LocalPath = dest
                     };
-                    await repo.AddRecordAsync(rec);
+                    await _repo.AddRecordAsync(rec);
                     item.Status = "Completed";
                     item.Progress = 100;
                     StatusText = $"Downloaded {item.File.Name} to {dest}";

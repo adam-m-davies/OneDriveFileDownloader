@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using OneDriveFileDownloader.Core.Services;
 using OneDriveFileDownloader.Core.Models;
-using OneDriveFileDownloader.Console.Services;
+using OneDriveFileDownloader.Core.Services;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
@@ -12,20 +12,23 @@ namespace OneDriveFileDownloader.WinUI
 {
     public sealed partial class MainWindow : NavigationView
     {
-        private readonly MainViewModel _vm = new MainViewModel();
+        private readonly global::OneDriveFileDownloader.UI.ViewModels.MainViewModel _vm = new global::OneDriveFileDownloader.UI.ViewModels.MainViewModel();
         private readonly Settings _settings;
 
         public MainWindow()
         {
             this.InitializeComponent();
 
-            _settings = SettingsStore.Load();
+            _settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
 
             // set DataContext
             this.DataContext = _vm;
 
             // show selected UX in status
             StatusText.Text = $"UI Experience: {_settings.SelectedUx}";
+
+            // load UI based on selected option
+            LoadSelectedUx();
 
             // if we have a saved client id, leave it preconfigured (ViewModel handles it)
             if (!string.IsNullOrEmpty(_settings.LastClientId))
@@ -55,6 +58,9 @@ namespace OneDriveFileDownloader.WinUI
                 // load shared items handled by ViewModel; UI is bound to ViewModel collections
                 // update Sign-in button text
                 if (saveCheck.IsChecked == true) SignInButton.Content = "Sign in (use saved client id)";
+
+                // reload UX content if needed (some UX rely on shared items)
+                LoadSelectedUx();
             }
         }
 
@@ -83,7 +89,7 @@ namespace OneDriveFileDownloader.WinUI
                 var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
                 var stack = new StackPanel();
                 var folderBox = new TextBox { PlaceholderText = "Local downloads folder", Text = _settings.LastDownloadFolder ?? string.Empty };
-                var uxBox = new ComboBox { ItemsSource = Enum.GetValues(typeof(OneDriveFileDownloader.Console.Services.UxOption)).Cast<object>(), SelectedItem = _settings.SelectedUx };
+                var uxBox = new ComboBox { ItemsSource = Enum.GetValues(typeof(OneDriveFileDownloader.Core.Services.UxOption)).Cast<object>(), SelectedItem = _settings.SelectedUx };
                 var clearBtn = new Button { Content = "Clear saved Client ID", Margin = new Microsoft.UI.Xaml.Thickness(0,8,0,0) };
                 clearBtn.Click += (s, e2) => { _settings.LastClientId = null; SettingsStore.Save(_settings); StatusText.Text = "Cleared saved Client ID."; };
 
@@ -97,7 +103,7 @@ namespace OneDriveFileDownloader.WinUI
                 if (res == ContentDialogResult.Primary)
                 {
                     _settings.LastDownloadFolder = folderBox.Text?.Trim();
-                    if (uxBox.SelectedItem is OneDriveFileDownloader.Console.Services.UxOption ux)
+                    if (uxBox.SelectedItem is OneDriveFileDownloader.Core.Services.UxOption ux)
                     {
                         _settings.SelectedUx = ux;
                     }
@@ -136,6 +142,29 @@ namespace OneDriveFileDownloader.WinUI
 
             // call viewmodel download
             await _vm.DownloadAsync(vm);
+        }
+        private void LoadSelectedUx()
+        {
+            switch (_settings.SelectedUx)
+            {
+                case OneDriveFileDownloader.Core.Services.UxOption.Minimal:
+                    // Minimal: show the Videos list UI (reuse previous layout) by creating a simple UserControl
+                    var minimal = new Controls.MinimalView(_vm);
+                    MainContent.Content = minimal;
+                    break;
+                case OneDriveFileDownloader.Core.Services.UxOption.Dashboard:
+                    var dash = new Pages.DashboardPage(_vm);
+                    MainContent.Content = dash;
+                    break;
+                case OneDriveFileDownloader.Core.Services.UxOption.Explorer:
+                    var explore = new Pages.ExplorerPage(_vm);
+                    MainContent.Content = explore;
+                    _ = explore.InitializeAsync();
+                    break;
+                default:
+                    MainContent.Content = new Controls.MinimalView(_vm);
+                    break;
+            }
         }
     }
 }

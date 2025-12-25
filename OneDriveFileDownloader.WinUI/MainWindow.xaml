@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:local="using:OneDriveFileDownloader.WinUI"
-    xmlns:vm="using:OneDriveFileDownloader.WinUI.ViewModels"
+    xmlns:vm="using:OneDriveFileDownloader.UI.ViewModels"
     RequestedTheme="Light"
     IsBackButtonVisible="Collapsed"
     PaneDisplayMode="Left"
@@ -43,24 +43,7 @@
             <Button Content="Scan for videos" Click="ScanButton_Click" Margin="0,8,0,0" />
         </StackPanel>
 
-        <!-- Right: videos and actions -->
-        <StackPanel Grid.Column="1" Margin="8">
-            <TextBlock Text="Videos" FontWeight="SemiBold" />
-            <ListView ItemsSource="{Binding Videos}" x:Name="VideosList" Height="300" IsItemClickEnabled="True" SelectionMode="Single" ItemClick="VideosList_ItemClick">
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:DownloadItemViewModel">
-                        <StackPanel Orientation="Horizontal" Padding="6">
-                            <TextBlock Text="{x:Bind File.Name}" Width="320" />
-                            <ProgressBar Value="{x:Bind Progress}" Width="150" Margin="8,0,0,0" />
-                            <TextBlock Text="{x:Bind Status}" Margin="8,0,0,0" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <Button Content="Download Selected" Click="DownloadSelectedButton_Click" />
-                <TextBlock Text="{Binding StatusText}" Margin="12,6,0,0" VerticalAlignment="Center" />
-            </StackPanel>
-        </StackPanel>
+        <!-- Right: content changes based on selected UX -->
+        <ContentControl Grid.Column="1" x:Name="MainContent" Margin="8" />
     </Grid>
 </muxc:NavigationView>
