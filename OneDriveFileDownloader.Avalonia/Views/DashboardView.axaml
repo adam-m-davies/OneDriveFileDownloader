@@ -22,7 +22,8 @@
 
     <StackPanel Grid.Row="2" Spacing="8">
       <TextBlock Text="Recent Downloads" FontWeight="SemiBold" FontSize="16" />
-      <ListBox x:Name="RecentList" ItemsSource="{Binding RecentDownloads}" Background="Transparent" BorderThickness="0">
+      <TextBlock Text="No recent downloads found." IsVisible="{Binding RecentDownloads.Count, Converter={StaticResource EmptyToVisibleConverter}}" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <ListBox x:Name="RecentList" ItemsSource="{Binding RecentDownloads}" IsVisible="{Binding RecentDownloads.Count, Converter={StaticResource CountToVisibleConverter}}" Background="Transparent" BorderThickness="0">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">

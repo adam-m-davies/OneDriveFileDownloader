@@ -20,78 +20,50 @@ public partial class MainWindow : Window
 		_vm = new MainViewModel();
 		DataContext = _vm;
 
-		// load settings and reflect chosen UX
-		_settings = SettingsStore.Load();
-		_vm.StatusText = $"UI Experience: {_settings.SelectedUx}";
+		_vm.RequestSignIn += () => {
+			var wnd = new SignInWindow(_vm);
+			_ = wnd.ShowDialog(this);
+		};
 
-		var minimalBtn = this.FindControl<Button>("MinimalBtn");
-		if (minimalBtn != null) minimalBtn.Click += MinimalBtn_Click;
-		
-		var dashboardBtn = this.FindControl<Button>("DashboardBtn");
-		if (dashboardBtn != null) dashboardBtn.Click += DashboardBtn_Click;
-		
-		var explorerBtn = this.FindControl<Button>("ExplorerBtn");
-		if (explorerBtn != null) explorerBtn.Click += ExplorerBtn_Click;
-		
-		var signInBtn = this.FindControl<Button>("SignInBtn");
-		if (signInBtn != null) signInBtn.Click += SignInBtn_Click;
-		
-		var settingsBtn = this.FindControl<Button>("SettingsBtn");
-		if (settingsBtn != null) settingsBtn.Click += SettingsBtn_Click;
+		_vm.RequestSettings += () => {
+			var wnd = new SettingsWindow(_vm);
+			_ = wnd.ShowDialog(this);
+		};
 
-		// show configured UX on startup
-		var mainContent = this.FindControl<ContentControl>("MainContent");
-		if (mainContent != null)
-		{
-			switch (_settings.SelectedUx)
+		_vm.RequestNavigate += (viewName) => {
+			var mainContent = this.FindControl<ContentControl>("MainContent");
+			if (mainContent == null) return;
+
+			switch (viewName)
 			{
-				case UxOption.Dashboard:
+				case "Dashboard":
 					mainContent.Content = new DashboardView { DataContext = _vm };
 					_ = _vm.LoadRecentDownloadsAsync();
 					break;
-				case UxOption.Explorer:
+				case "Explorer":
 					mainContent.Content = new ExplorerView { DataContext = _vm };
 					_ = _vm.LoadSharedItemsAsync();
 					break;
 				default:
 					mainContent.Content = new MinimalView { DataContext = _vm };
+					_ = global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () => {
+						await _vm.LoadSharedItemsAsync();
+						if (_vm.SharedItems.Count > 0) await _vm.ScanAsync(_vm.SharedItems[0]);
+					});
 					break;
 			}
-		}
+		};
+
+		// load settings and reflect chosen UX
+		_settings = SettingsStore.Load();
+		_vm.StatusText = $"UI Experience: {_settings.SelectedUx}";
+
+		// show configured UX on startup
+		_vm.NavigateCommand.Execute(_settings.SelectedUx.ToString());
 	}
 
 	public void InitializeComponent()
 	{
 		AvaloniaXamlLoader.Load(this);
-	}
-
-	private void MinimalBtn_Click(object sender, RoutedEventArgs e)
-	{
-		var mainContent = this.FindControl<ContentControl>("MainContent");
-		if (mainContent != null) mainContent.Content = new MinimalView { DataContext = _vm };
-	}
-
-	private void DashboardBtn_Click(object sender, RoutedEventArgs e)
-	{
-		var mainContent = this.FindControl<ContentControl>("MainContent");
-		if (mainContent != null) mainContent.Content = new DashboardView { DataContext = _vm };
-	}
-
-	private void ExplorerBtn_Click(object sender, RoutedEventArgs e)
-	{
-		var mainContent = this.FindControl<ContentControl>("MainContent");
-		if (mainContent != null) mainContent.Content = new ExplorerView { DataContext = _vm };
-	}
-
-	private void SettingsBtn_Click(object sender, RoutedEventArgs e)
-	{
-		var wnd = new SettingsWindow(_vm);
-		_ = wnd.ShowDialog(this);
-	}
-
-	private void SignInBtn_Click(object sender, RoutedEventArgs e)
-	{
-		var wnd = new SignInWindow(_vm);
-		_ = wnd.ShowDialog(this);
 	}
 }

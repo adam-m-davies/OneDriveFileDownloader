@@ -17,6 +17,7 @@ namespace OneDriveFileDownloader.Core.Services
 		private IPublicClientApplication _pca;
 		private readonly string[] _scopes = new[] { "Files.Read", "User.Read" };
 		private readonly HttpClient _http = new HttpClient();
+		private static readonly string CacheFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OneDriveFileDownloader", "msal_cache.bin");
 
 		public void Configure(string clientId)
 		{
@@ -26,6 +27,35 @@ namespace OneDriveFileDownloader.Core.Services
 				// Explicit redirect URI: ensure this is registered in your app registration (http://localhost)
 				.WithRedirectUri("http://localhost")
 				.Build();
+
+			BindCache(_pca.UserTokenCache);
+		}
+
+		private void BindCache(ITokenCache tokenCache)
+		{
+			tokenCache.SetBeforeAccess(args =>
+			{
+				lock (CacheFilePath)
+				{
+					if (File.Exists(CacheFilePath))
+					{
+						args.TokenCache.DeserializeMsalV3(File.ReadAllBytes(CacheFilePath));
+					}
+				}
+			});
+
+			tokenCache.SetAfterAccess(args =>
+			{
+				if (args.HasStateChanged)
+				{
+					lock (CacheFilePath)
+					{
+						var dir = Path.GetDirectoryName(CacheFilePath);
+						if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+						File.WriteAllBytes(CacheFilePath, args.TokenCache.SerializeMsalV3());
+					}
+				}
+			});
 		}
 
 		public async Task<string> AuthenticateInteractiveAsync(Action<string> deviceCodeCallback = null, IntPtr? parentWindow = null)
@@ -74,6 +104,31 @@ namespace OneDriveFileDownloader.Core.Services
 				}).ExecuteAsync();
 
 				return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
+			}
+		}
+
+		public async Task<string> AuthenticateSilentAsync()
+		{
+			if (_pca == null) return null;
+			var accounts = await _pca.GetAccountsAsync();
+			var first = accounts.FirstOrDefault();
+			if (first == null) return null;
+
+			try
+			{
+				var result = await _pca.AcquireTokenSilent(_scopes, first).ExecuteAsync();
+				return result.Account.Username ?? result.Account.HomeAccountId?.Identifier ?? "(unknown)";
+			}
+			catch { return null; }
+		}
+
+		public async Task SignOutAsync()
+		{
+			if (_pca == null) return;
+			var accounts = await _pca.GetAccountsAsync();
+			foreach (var a in accounts)
+			{
+				await _pca.RemoveAsync(a);
 			}
 		}
 

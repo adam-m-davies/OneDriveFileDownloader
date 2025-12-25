@@ -11,27 +11,42 @@
     <Grid Grid.Row="1" ColumnDefinitions="300, 12, *">
       <!-- Left Pane: Folder Tree -->
       <Grid Grid.Column="0" RowDefinitions="Auto, *">
-        <Button Grid.Row="0" x:Name="ScanFolderBtn" HorizontalAlignment="Stretch" Margin="0,0,0,8" IsVisible="{Binding !ScanOnSelection}">
+        <Button Grid.Row="0" x:Name="ScanFolderBtn" Command="{Binding ScanFolderCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,8" IsVisible="{Binding ScanOnSelection, Converter={StaticResource InverseBoolConverter}}">
           <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
             <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
             <TextBlock Text="Scan Selected Folder" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
         
-        <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding FolderRoots}" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4">
+        <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding FolderRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4">
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            </Style>
+          </TreeView.Styles>
           <TreeView.ItemTemplate>
-            <DataTemplate>
+            <TreeDataTemplate ItemsSource="{Binding Children}">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource SystemAccentColor}" />
                 <TextBlock Text="{Binding Item.Name}" VerticalAlignment="Center" />
               </StackPanel>
-            </DataTemplate>
+            </TreeDataTemplate>
           </TreeView.ItemTemplate>
         </TreeView>
       </Grid>
 
       <!-- Right Pane: Contents -->
-      <ListBox Grid.Column="2" x:Name="ContentsList" ItemsSource="{Binding Videos}" Background="Transparent" BorderThickness="0">
+      <Grid Grid.Column="2">
+        <TextBlock Text="Select a folder to view files" IsVisible="{Binding SelectedNode, Converter={StaticResource InverseBoolConverter}}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        <TextBlock Text="No video files found in this folder." IsVisible="{Binding Videos.Count, Converter={StaticResource EmptyToVisibleConverter}}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+          <TextBlock.IsVisible>
+            <MultiBinding Converter="{x:Static BoolConverters.And}">
+              <Binding Path="SelectedNode" Converter="{x:Static ObjectConverters.IsNotNull}" />
+              <Binding Path="Videos.Count" Converter="{StaticResource EmptyToVisibleConverter}" />
+            </MultiBinding>
+          </TextBlock.IsVisible>
+        </TextBlock>
+        <ListBox x:Name="ContentsList" ItemsSource="{Binding Videos}" Background="Transparent" BorderThickness="0">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">
@@ -44,7 +59,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                  <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding !IsDownloading}" Background="Transparent" BorderThickness="0" />
+                  <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" Background="Transparent" BorderThickness="0" />
                   <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" Background="Transparent" BorderThickness="0" Foreground="Red" />
                   <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" Background="Transparent" BorderThickness="0" />
                 </StackPanel>
@@ -55,4 +70,5 @@
       </ListBox>
     </Grid>
   </Grid>
+</Grid>
 </UserControl>

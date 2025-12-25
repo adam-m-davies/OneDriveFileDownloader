@@ -19,7 +19,7 @@
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-          <Button x:Name="SignInBtn" Content="Sign in" Classes="accent" Command="{Binding SignInCommand}" IsVisible="{Binding !IsAuthenticated}" />
+          <Button x:Name="SignInBtn" Content="Sign in" Classes="accent" Command="{Binding SignInCommand}" IsVisible="{Binding IsAuthenticated, Converter={StaticResource InverseBoolConverter}}" />
           <Button x:Name="SettingsBtn" Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Settings" Command="{Binding OpenSettingsCommand}" Background="Transparent" BorderThickness="0" FontSize="18" />
           <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Sign Out" Command="{Binding SignOutCommand}" IsVisible="{Binding IsAuthenticated}" Background="Transparent" BorderThickness="0" FontSize="18" Foreground="#E81123" />
         </StackPanel>
@@ -30,19 +30,19 @@
     <SplitView Grid.Row="1" IsPaneOpen="True" DisplayMode="CompactInline" OpenPaneLength="200" CompactPaneLength="48">
       <SplitView.Pane>
         <StackPanel Spacing="4" Margin="4,12">
-          <Button x:Name="MinimalBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+          <Button x:Name="MinimalBtn" Command="{Binding NavigateCommand}" CommandParameter="Minimal" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
               <TextBlock Text="Minimal" />
             </StackPanel>
           </Button>
-          <Button x:Name="DashboardBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+          <Button x:Name="DashboardBtn" Command="{Binding NavigateCommand}" CommandParameter="Dashboard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
               <TextBlock Text="Dashboard" />
             </StackPanel>
           </Button>
-          <Button x:Name="ExplorerBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+          <Button x:Name="ExplorerBtn" Command="{Binding NavigateCommand}" CommandParameter="Explorer" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
               <TextBlock Text="Explorer" />

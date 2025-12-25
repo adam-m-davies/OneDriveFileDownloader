@@ -11,7 +11,13 @@
       </StackPanel>
     </StackPanel>
 
-    <ListBox Grid.Row="1" x:Name="VideosList" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
+    <TextBlock Grid.Row="1" Text="No video files found. Try scanning or check your OneDrive." 
+               IsVisible="{Binding Videos.Count, Converter={StaticResource EmptyToVisibleConverter}}"
+               HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+
+    <ListBox Grid.Row="1" x:Name="VideosList" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo, Mode=TwoWay}" 
+             IsVisible="{Binding Videos.Count, Converter={StaticResource CountToVisibleConverter}}"
+             Background="Transparent" BorderThickness="0">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">
@@ -39,7 +45,7 @@
 
               <!-- Actions -->
               <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4">
-                <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding !IsDownloading}" Background="Transparent" BorderThickness="0" />
+                <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" Background="Transparent" BorderThickness="0" />
                 <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" Background="Transparent" BorderThickness="0" Foreground="Red" />
                 <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" Background="Transparent" BorderThickness="0" />
               </StackPanel>

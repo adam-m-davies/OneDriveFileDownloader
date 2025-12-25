@@ -15,6 +15,9 @@ namespace OneDriveFileDownloader.Tests
 
 		public void Configure(string clientId) { }
 		public Task<string> AuthenticateInteractiveAsync(System.Action<string> deviceCodeCallback = null, System.IntPtr? parentWindow = null) => Task.FromResult("fakeuser@example.com");
+		public Task<string> AuthenticateSilentAsync() => Task.FromResult("fakeuser@example.com");
+		public Task SignOutAsync() => Task.CompletedTask;
+
 		public virtual async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long> progress = null, CancellationToken cancellation = default)
 		{
 			// simulate streaming progress

@@ -17,6 +17,16 @@ namespace OneDriveFileDownloader.Core.Interfaces
 		Task<string> AuthenticateInteractiveAsync(System.Action<string> deviceCodeCallback = null, System.IntPtr? parentWindow = null);
 
 		/// <summary>
+		/// Attempts to sign in silently using cached tokens.
+		/// </summary>
+		Task<string> AuthenticateSilentAsync();
+
+		/// <summary>
+		/// Signs out the current user and clears the token cache.
+		/// </summary>
+		Task SignOutAsync();
+
+		/// <summary>
 		/// Returns profile information for the signed-in user, including display name and optional thumbnail bytes.
 		/// </summary>
 		Task<UserProfile> GetUserProfileAsync();

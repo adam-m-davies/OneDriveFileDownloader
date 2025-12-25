@@ -38,47 +38,22 @@ public partial class SettingsWindow : Window
 		{
 			browseBtn.Click += async (s, e) =>
 			{
-				// Use StorageProvider API when available (recommended). Fall back to OpenFolderDialog for compatibility.
-			try
-			{
-				var provider = this.StorageProvider ?? (this.GetVisualRoot() as TopLevel)?.StorageProvider;
-				string folderPath = null;
-				if (provider != null)
+				try
 				{
-					// Use reflection to call a folder-pick method if present (PickFolderAsync / TryPickFolderAsync / PickSingleFolderAsync)
-					var m = provider.GetType().GetMethod("PickFolderAsync") ?? provider.GetType().GetMethod("TryPickFolderAsync") ?? provider.GetType().GetMethod("PickSingleFolderAsync");
-					if (m != null)
+					var folders = await this.StorageProvider.OpenFolderPickerAsync(new global::Avalonia.Platform.Storage.FolderPickerOpenOptions
 					{
-						var task = m.Invoke(provider, Array.Empty<object>()) as System.Threading.Tasks.Task;
-						if (task != null)
-						{
-							await task.ConfigureAwait(false);
-							var resultProp = task.GetType().GetProperty("Result");
-							var resObj = resultProp?.GetValue(task);
-							if (resObj != null)
-							{
-								var pathProp = resObj.GetType().GetProperty("Path") ?? resObj.GetType().GetProperty("FullPath") ?? resObj.GetType().GetProperty("LocalPath");
-								if (pathProp != null)
-									folderPath = pathProp.GetValue(resObj) as string;
-								else
-									folderPath = resObj.ToString();
-							}
-						}
+						Title = "Select Download Folder",
+						AllowMultiple = false
+					});
+
+					if (folders != null && folders.Count > 0)
+					{
+						var folderPath = folders[0].Path.LocalPath;
+						if (folderBox != null) folderBox.Text = folderPath;
 					}
 				}
-
-				if (string.IsNullOrEmpty(folderPath))
-				{
-					// fallback
-					var dlg = new OpenFolderDialog();
-					var res = await dlg.ShowAsync(this);
-					folderPath = res;
-				}
-
-				if (!string.IsNullOrEmpty(folderPath) && folderBox != null) folderBox.Text = folderPath;
-			}
-			catch { /* ignore user cancellation or failures */ }
-		};
+				catch { /* ignore user cancellation or failures */ }
+			};
 		}
 
 		if (clearClientBtn != null) clearClientBtn.Click += (s, e) => { if (clientIdBox != null) clientIdBox.Text = string.Empty; };
