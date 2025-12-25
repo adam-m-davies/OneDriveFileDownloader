@@ -1,0 +1,60 @@
+# Visual Studio / .NET
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+_ReSharper.*
+
+# Build results
+bin/
+obj/
+out/
+publish/
+
+# NuGet
+*.nupkg
+.packages/
+project.lock.json
+project.fragment.lock.json
+
+# VS and Rider
+.idea/
+*.sublime-workspace
+
+# Runtime files
+*.dll
+*.exe
+*.pdb
+*.runtimeconfig.json
+
+# Database / local state / logs
+*.db
+*.sqlite
+*.db-journal
+*.log
+
+# Test results
+TestResults/
+coverage/
+
+# Ignore user-specific files
+*.vspscc
+*.vssscc
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Ignore NuGet packages and caches
+**/packages/
+.nuget/
+
+# Ensure node modules (if any accidental) are ignored
+node_modules/
+
+# Keep Git clean
+*.bak
+*.tmp
+*.temp

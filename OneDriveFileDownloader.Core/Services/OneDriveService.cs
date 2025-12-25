@@ -23,7 +23,8 @@ namespace OneDriveFileDownloader.Core.Services
             _clientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
             _pca = PublicClientApplicationBuilder
                 .Create(_clientId)
-                .WithDefaultRedirectUri()
+                // Explicit redirect URI: ensure this is registered in your app registration (http://localhost)
+                .WithRedirectUri("http://localhost")
                 .Build();
         }
 
@@ -37,20 +38,30 @@ namespace OneDriveFileDownloader.Core.Services
                     .WithPrompt(Prompt.SelectAccount)
                     .ExecuteAsync();
 
-                // Interactive auth completed; token cache is seeded for subsequent silent calls.
+                // Interactive auth completed; token cache is seeded.
 
                 return result.Account.Username ?? result.Account.HomeAccountId?.Identifier ?? "(unknown)";
             }
-            catch (MsalException)
+            catch (Microsoft.Identity.Client.MsalServiceException se) when ((se.ErrorCode != null && se.ErrorCode.IndexOf("invalid_request", StringComparison.OrdinalIgnoreCase) >= 0) || (se.Message != null && se.Message.IndexOf("redirect", StringComparison.OrdinalIgnoreCase) >= 0))
             {
-                // fallback to device code flow
+                Console.WriteLine("Interactive sign-in failed due to redirect URI mismatch. Ensure your app registration includes 'http://localhost' (or 'https://login.microsoftonline.com/common/oauth2/nativeclient') as a redirect URI for your client id. Falling back to device code flow.");
+
                 var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
                 {
                     Console.WriteLine(callback.Message);
                     return Task.CompletedTask;
                 }).ExecuteAsync();
 
-                // Interactive auth completed; token cache seeded.
+                return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
+            }
+            catch (MsalException)
+            {
+                // other MSAL exception - fallback to device code
+                var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
+                {
+                    Console.WriteLine(callback.Message);
+                    return Task.CompletedTask;
+                }).ExecuteAsync();
 
                 return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
             }

@@ -10,7 +10,11 @@ Highlights
 
 Quick start
 1. Register an app in Azure AD (App registrations) that allows personal Microsoft accounts ("Accounts in any organizational directory and personal Microsoft accounts").
-   - Set redirect URI to: `http://localhost`
+   - Supported account types: *Accounts in any organizational directory and personal Microsoft accounts (e.g., Skype, Xbox)*.
+   - Redirect URIs: add **one or both** of the following to your app registration:
+     - `http://localhost` (add as **Web** redirect URI)
+     - `https://login.microsoftonline.com/common/oauth2/nativeclient` (add via **Mobile and desktop applications** platform)
+     - Note: the code uses `http://localhost` explicitly for interactive flow. Ensure that the value you register matches the app's Client ID and the redirect URI used by the app.
    - Note the **Client ID**.
    - Add delegated permission: `Files.Read` and `User.Read` (user consent required at runtime).
 2. Build:
