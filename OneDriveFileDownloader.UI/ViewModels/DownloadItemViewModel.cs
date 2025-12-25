@@ -30,7 +30,51 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
         public bool IsDownloading => string.Equals(Status, "Downloading", StringComparison.OrdinalIgnoreCase);
 
-        public CancellationTokenSource Cancellation { get; } = new CancellationTokenSource();
+        private double _speedBytesPerSec;
+        public double SpeedBytesPerSec
+        {
+            get => _speedBytesPerSec;
+            set
+            {
+                if (Set(ref _speedBytesPerSec, value))
+                {
+                    RaisePropertyChanged(nameof(EstimatedRemaining));
+                }
+            }
+        }
+
+        public string EstimatedRemaining
+        {
+            get
+            {
+                if (File.Size.HasValue && SpeedBytesPerSec > 0 && Progress < 100)
+                {
+                    var remaining = (File.Size.Value * (100 - Progress) / 100.0) / SpeedBytesPerSec;
+                    return TimeSpan.FromSeconds(Math.Max(0, remaining)).ToString(@"hh\:mm\:ss");
+                }
+                return string.Empty;
+            }
+        }
+
+        private int _retryCount = 0;
+        public int RetryCount
+        {
+            get => _retryCount;
+            set => Set(ref _retryCount, value);
+        }
+
+        public void Retry()
+        {
+            RetryCount++;
+            Cancel();
+            try { Cancellation.Dispose(); } catch { }
+            // create a new CTS for future download
+            Cancellation = new System.Threading.CancellationTokenSource();
+            Status = "Pending";
+            Progress = 0;
+        }
+
+        public CancellationTokenSource Cancellation { get; private set; } = new CancellationTokenSource();
 
         public DownloadItemViewModel(DriveItemInfo file)
         {

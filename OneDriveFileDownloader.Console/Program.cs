@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using OneDriveFileDownloader.Core.Interfaces;
 using OneDriveFileDownloader.Core.Models;
 using OneDriveFileDownloader.Core.Services;
-using OneDriveFileDownloader.Console.Services;
+// using OneDriveFileDownloader.Console.Services; // avoid ambiguous SettingsStore - use Core.Services.SettingsStore instead
 
 class Program
 {
@@ -13,7 +13,7 @@ class Program
     {
         Console.WriteLine("OneDrive File Downloader sample (personal accounts).\n");
 
-        var settings = SettingsStore.Load();
+        var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
         string? clientId = null;
         if (!string.IsNullOrEmpty(settings?.LastClientId))
         {
@@ -40,7 +40,7 @@ class Program
         // persist last used client id (best-effort)
         try
         {
-            if (!string.IsNullOrEmpty(clientId)) SettingsStore.SaveLastClientId(clientId);
+            if (!string.IsNullOrEmpty(clientId)) OneDriveFileDownloader.Core.Services.SettingsStore.SaveLastClientId(clientId);
         }
         catch
         {

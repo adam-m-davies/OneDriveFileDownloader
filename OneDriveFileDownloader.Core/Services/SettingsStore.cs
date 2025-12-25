@@ -11,6 +11,7 @@ namespace OneDriveFileDownloader.Core.Services
         public string? LastClientId { get; set; }
         public string? LastDownloadFolder { get; set; }
         public UxOption SelectedUx { get; set; } = UxOption.Minimal;
+        public int MaxConcurrentDownloads { get; set; } = 3;
     }
 
     public static class SettingsStore

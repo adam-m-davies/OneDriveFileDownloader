@@ -31,5 +31,14 @@ namespace OneDriveFileDownloader.WinUI.Controls
                 vm.Cancel();
             }
         }
+
+        private void RetryButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button b && b.DataContext is DownloadItemViewModel vm)
+            {
+                vm.Retry();
+                _ = _vm.DownloadAsync(vm);
+            }
+        }
     }
 }

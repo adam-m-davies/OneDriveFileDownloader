@@ -30,11 +30,30 @@ namespace OneDriveFileDownloader.UI.ViewModels
         private object? _userThumbnail;
         public object? UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
+        private System.Threading.SemaphoreSlim _queueSemaphore;
+
+        private int _maxConcurrentDownloads = 3;
+        public int MaxConcurrentDownloads
+        {
+            get => _maxConcurrentDownloads;
+            set
+            {
+                if (value <= 0) value = 1;
+                if (value == _maxConcurrentDownloads) return;
+                _maxConcurrentDownloads = value;
+                var old = System.Threading.Interlocked.Exchange(ref _queueSemaphore, new System.Threading.SemaphoreSlim(_maxConcurrentDownloads, _maxConcurrentDownloads));
+                try { old?.Dispose(); } catch { }
+            }
+        }
+
         public MainViewModel(IOneDriveService? svc = null, IDownloadRepository? repo = null)
         {
             _svc = svc ?? new OneDriveFileDownloader.Core.Services.OneDriveService();
             _repo = repo ?? new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db"));
             _settings = SettingsStore.Load();
+
+            _maxConcurrentDownloads = _settings.MaxConcurrentDownloads > 0 ? _settings.MaxConcurrentDownloads : 3;
+            _queueSemaphore = new System.Threading.SemaphoreSlim(_maxConcurrentDownloads, _maxConcurrentDownloads);
 
             if (!string.IsNullOrEmpty(_settings.LastClientId))
             {
@@ -180,66 +199,85 @@ namespace OneDriveFileDownloader.UI.ViewModels
                 return;
             }
 
-            item.Status = "Downloading";
-            var temp = Path.GetTempFileName();
-
-            var progress = new Progress<long>(bytes =>
-            {
-                if (item.File.Size.HasValue && item.File.Size.Value > 0)
-                {
-                    item.Progress = Math.Min(100.0, (bytes / (double)item.File.Size.Value) * 100.0);
-                }
-                else
-                {
-                    item.Progress = Math.Min(100.0, item.Progress + 5);
-                }
-            });
-
+            // queue throttling
+            await _queueSemaphore.WaitAsync();
             try
             {
-                using (var fs = File.Create(temp))
+                item.Status = "Downloading";
+                var temp = Path.GetTempFileName();
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                long lastBytes = 0;
+                var progress = new Progress<long>(bytes =>
                 {
-                    var dl = await _svc.DownloadFileAsync(item.File, fs, progress, item.Cancellation.Token);
-                    if (!string.IsNullOrEmpty(dl.Sha1Hash) && await _repo.HasHashAsync(dl.Sha1Hash))
+                    if (item.File.Size.HasValue && item.File.Size.Value > 0)
                     {
+                        item.Progress = Math.Min(100.0, (bytes / (double)item.File.Size.Value) * 100.0);
+                    }
+                    else
+                    {
+                        item.Progress = Math.Min(100.0, item.Progress + 5);
+                    }
+
+                    var elapsed = Math.Max(0.001, sw.Elapsed.TotalSeconds);
+                    var delta = bytes - lastBytes;
+                    item.SpeedBytesPerSec = delta / elapsed;
+                    lastBytes = bytes;
+                    sw.Restart();
+                    RaisePropertyChanged(nameof(item.EstimatedRemaining));
+                });
+
+                try
+                {
+                    using (var fs = File.Create(temp))
+                    {
+                        var dl = await _svc.DownloadFileAsync(item.File, fs, progress, item.Cancellation.Token);
+                        // check duplicate
+                        if (!string.IsNullOrEmpty(dl.Sha1Hash) && await _repo.HasHashAsync(dl.Sha1Hash))
+                        {
+                            fs.Close();
+                            File.Delete(temp);
+                            item.Status = "Duplicate after hash check";
+                            return;
+                        }
+
+                        var dest = Path.Combine(downloads, item.File.Name);
+                        if (File.Exists(dest))
+                        {
+                            dest = Path.Combine(downloads, Path.GetFileNameWithoutExtension(item.File.Name) + "_" + Guid.NewGuid().ToString("n").Substring(0, 8) + Path.GetExtension(item.File.Name));
+                        }
                         fs.Close();
-                        File.Delete(temp);
-                        item.Status = "Duplicate after hash check";
-                        return;
-                    }
+                        File.Move(temp, dest);
 
-                    var dest = Path.Combine(downloads, item.File.Name);
-                    if (File.Exists(dest))
-                    {
-                        dest = Path.Combine(downloads, Path.GetFileNameWithoutExtension(item.File.Name) + "_" + Guid.NewGuid().ToString("n").Substring(0, 8) + Path.GetExtension(item.File.Name));
+                        var rec = new DownloadRecord
+                        {
+                            FileId = item.File.Id,
+                            Sha1Hash = dl.Sha1Hash,
+                            FileName = item.File.Name,
+                            Size = dl.Size,
+                            LocalPath = dest
+                        };
+                        await _repo.AddRecordAsync(rec);
+                        item.Status = "Completed";
+                        item.Progress = 100;
+                        StatusText = $"Downloaded {item.File.Name} to {dest}";
                     }
-                    fs.Close();
-                    File.Move(temp, dest);
-
-                    var rec = new DownloadRecord
-                    {
-                        FileId = item.File.Id,
-                        Sha1Hash = dl.Sha1Hash,
-                        FileName = item.File.Name,
-                        Size = dl.Size,
-                        LocalPath = dest
-                    };
-                    await _repo.AddRecordAsync(rec);
-                    item.Status = "Completed";
-                    item.Progress = 100;
-                    StatusText = $"Downloaded {item.File.Name} to {dest}";
+                }
+                catch (OperationCanceledException)
+                {
+                    item.Status = "Canceled";
+                    if (File.Exists(temp)) File.Delete(temp);
+                }
+                catch (Exception ex)
+                {
+                    item.Status = "Error";
+                    if (File.Exists(temp)) File.Delete(temp);
+                    StatusText = "Error: " + ex.Message;
                 }
             }
-            catch (OperationCanceledException)
+            finally
             {
-                item.Status = "Canceled";
-                if (File.Exists(temp)) File.Delete(temp);
-            }
-            catch (Exception ex)
-            {
-                item.Status = "Error";
-                if (File.Exists(temp)) File.Delete(temp);
-                StatusText = "Error: " + ex.Message;
+                _queueSemaphore.Release();
             }
         }
     }
