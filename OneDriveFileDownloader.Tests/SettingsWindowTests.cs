@@ -26,6 +26,12 @@ namespace OneDriveFileDownloader.Tests
             Assert.Equal("test-client", s.LastClientId);
             Assert.Equal(Path.GetTempPath(), s.LastDownloadFolder);
 
+			// test ScanOnSelection persists
+			var s2 = new OneDriveFileDownloader.Core.Services.Settings { ScanOnSelection = false };
+			Assert.True(OneDriveFileDownloader.Core.Services.SettingsStore.TrySave(s2));
+			var s3 = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
+			Assert.False(s3.ScanOnSelection);
+
 			// cleanup
 			if (File.Exists(temp)) File.Delete(temp);
 			OneDriveFileDownloader.Core.Services.SettingsStore.TestFilePathOverride = null;

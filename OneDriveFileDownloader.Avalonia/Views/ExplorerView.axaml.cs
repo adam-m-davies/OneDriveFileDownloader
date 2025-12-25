@@ -16,7 +16,7 @@ public partial class ExplorerView : UserControl
 	public ExplorerView()
 	{
 		InitializeComponent();
-		this.AttachedToVisualTree += (s, e) => { _vm = DataContext as MainViewModel; };
+		this.AttachedToVisualTree += (s, e) => { _vm = DataContext as MainViewModel; ScanFolderBtn.Click += ScanFolderBtn_Click; };
 		FolderTree.SelectionChanged += FolderTree_SelectionChanged;
 		ContentsList.DoubleTapped += ContentsList_DoubleTapped;
 	}
@@ -25,15 +25,18 @@ public partial class ExplorerView : UserControl
 	{
 		if (FolderTree.SelectedItem is DriveItemNode node)
 		{
-			// expand node (load children) and scan folder contents
+			// expand node (load children)
 			_ = Task.Run(async () =>
 			{
 				await _vm.ExpandNodeAsync(node);
-				var results = await _vm.ScanFolderAsync(node.Item);
-				await Dispatcher.UIThread.InvokeAsync(() =>
+				if (_vm.ScanOnSelection)
 				{
-					ContentsList.ItemsSource = results;
-				});
+					var results = await _vm.ScanFolderAsync(node.Item);
+					await Dispatcher.UIThread.InvokeAsync(() =>
+					{
+						ContentsList.ItemsSource = results;
+					});
+				}
 			});
 		}
 	}
@@ -43,6 +46,18 @@ public partial class ExplorerView : UserControl
 		if (e.Source is TreeViewItem tvi && tvi.DataContext is DriveItemNode node)
 		{
 			_ = Task.Run(async () => { await _vm.ExpandNodeAsync(node); });
+		}
+	}
+
+	private void ScanFolderBtn_Click(object sender, RoutedEventArgs e)
+	{
+		if (FolderTree.SelectedItem is DriveItemNode node && node.IsFolder)
+		{
+			_ = Task.Run(async () =>
+			{
+				var results = await _vm.ScanFolderAsync(node.Item);
+				await Dispatcher.UIThread.InvokeAsync(() => { ContentsList.ItemsSource = results; });
+			});
 		}
 	}
 

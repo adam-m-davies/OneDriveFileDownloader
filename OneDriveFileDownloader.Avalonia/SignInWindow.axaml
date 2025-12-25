@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OneDriveFileDownloader.Avalonia.SignInWindow"
+        Title="Sign in" Width="400" Height="160">
+  <StackPanel Margin="12" Spacing="8">
+    <TextBlock Text="Client ID" />
+    <TextBox Name="ClientIdBox" />
+    <CheckBox Name="SaveCheck" Content="Save client id" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Name="SaveBtn" Content="Sign in" />
+      <Button Name="CancelBtn" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</Window>

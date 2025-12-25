@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using OneDriveFileDownloader.UI.ViewModels;
 using OneDriveFileDownloader.Avalonia.Views;
 using OneDriveFileDownloader.Core.Services;
+using System;
 
 namespace OneDriveFileDownloader.Avalonia;
 
@@ -18,9 +19,14 @@ public partial class MainWindow : Window
 		_vm = new MainViewModel();
 		DataContext = _vm;
 
+		// load settings and reflect chosen UX
+		_settings = SettingsStore.Load();
+		_vm.StatusText = $"UI Experience: {_settings.SelectedUx}";
+
 		MinimalBtn.Click += MinimalBtn_Click;
 		DashboardBtn.Click += DashboardBtn_Click;
 		ExplorerBtn.Click += ExplorerBtn_Click;
+		SignInBtn.Click += SignInBtn_Click;
 		SettingsBtn.Click += SettingsBtn_Click;
 
 		// show configured UX on startup
@@ -63,6 +69,12 @@ public partial class MainWindow : Window
 	private void SettingsBtn_Click(object sender, RoutedEventArgs e)
 	{
 		var wnd = new SettingsWindow();
+		_ = wnd.ShowDialog(this);
+	}
+
+	private void SignInBtn_Click(object sender, RoutedEventArgs e)
+	{
+		var wnd = new SignInWindow(_vm);
 		_ = wnd.ShowDialog(this);
 	}
 }

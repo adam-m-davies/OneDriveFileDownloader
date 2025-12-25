@@ -5,7 +5,9 @@
   <StackPanel Margin="8">
     <TextBlock Text="Explorer" FontSize="18" FontWeight="Bold" />
     <Grid ColumnDefinitions="300,*" RowDefinitions="Auto">
-      <TreeView Name="FolderTree" Grid.Column="0" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
+      <StackPanel Grid.Column="0" Margin="0,8,8,0">
+        <Button Name="ScanFolderBtn" Content="Scan folder" IsVisible="{Binding ScanOnSelection, Converter={StaticResource InverseBoolConverter}}" />
+        <TreeView Name="FolderTree" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
         <TreeView.ItemTemplate>
           <DataTemplate>
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -14,6 +16,7 @@
           </DataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>
+      </StackPanel>
 
       <ListBox Name="ContentsList" Grid.Column="1" ItemsSource="{Binding Videos}" Margin="8,8,0,8">
         <ListBox.ItemTemplate>

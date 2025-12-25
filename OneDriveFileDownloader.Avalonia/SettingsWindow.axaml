@@ -17,6 +17,7 @@
       <ComboBoxItem Content="Dashboard" />
       <ComboBoxItem Content="Explorer" />
     </ComboBox>
+    <CheckBox Name="ScanOnSelectionBox" Content="Automatically scan folder on selection" IsChecked="True" />
     <Button Name="ClearClientBtn" Content="Clear saved Client ID" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
       <Button Name="SaveBtn" Content="Save" />

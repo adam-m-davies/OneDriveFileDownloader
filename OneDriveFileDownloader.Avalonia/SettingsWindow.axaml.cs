@@ -15,6 +15,7 @@ public partial class SettingsWindow : Window
 		var settings = SettingsStore.Load();
 		ClientIdBox.Text = settings.LastClientId ?? string.Empty;
 		FolderBox.Text = settings.LastDownloadFolder ?? string.Empty;
+		ScanOnSelectionBox.IsChecked = settings.ScanOnSelection;
 
 		BrowseBtn.Click += async (s, e) =>
 		{
@@ -66,7 +67,7 @@ public partial class SettingsWindow : Window
 		{
 			// read Selected UX from UxBox
 			var ux = UxBox.SelectedIndex switch { 1 => UxOption.Dashboard, 2 => UxOption.Explorer, _ => UxOption.Minimal };
-			var s2 = new Settings { LastClientId = ClientIdBox.Text?.Trim() ?? string.Empty, LastDownloadFolder = FolderBox.Text?.Trim() ?? string.Empty, SelectedUx = ux };
+			var s2 = new Settings { LastClientId = ClientIdBox.Text?.Trim() ?? string.Empty, LastDownloadFolder = FolderBox.Text?.Trim() ?? string.Empty, SelectedUx = ux, ScanOnSelection = ScanOnSelectionBox.IsChecked == true };
 			SettingsStore.Save(s2);
 			Close();
 		};

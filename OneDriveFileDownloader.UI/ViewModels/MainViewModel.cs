@@ -39,11 +39,18 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		private object _userThumbnail;
 		public object UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
-		public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null)
+		private readonly OneDriveFileDownloader.UI.Services.IProcessLauncher _launcher;
+
+		private bool _scanOnSelection;
+		public bool ScanOnSelection { get => _scanOnSelection; set { if (Set(ref _scanOnSelection, value)) { _settings.SelectedUx = _settings.SelectedUx; _settings.ScanOnSelection = value; SettingsStore.Save(_settings); } } }
+
+		public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null, OneDriveFileDownloader.UI.Services.IProcessLauncher launcher = null)
 		{
 			_svc = svc ?? new OneDriveFileDownloader.Core.Services.OneDriveService();
 			_repo = repo ?? new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db"));
 			_settings = SettingsStore.Load();
+			_scanOnSelection = _settings.ScanOnSelection;
+			_launcher = launcher ?? new OneDriveFileDownloader.UI.Services.SystemProcessLauncher();
 
 			if (!string.IsNullOrEmpty(_settings.LastClientId))
 			{
@@ -176,38 +183,12 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			catch { }
 		}
 
-		public async Task ExpandNodeAsync(DriveItemNode node)
-		{
-			if (node == null || !node.IsFolder) return;
-			if (node.Children.Count > 0) return; // already expanded or leaf
-			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
-			var children = await _svc.ListChildrenAsync(fakeShared);
-			foreach (var c in children)
-			{
-				node.Children.Add(new DriveItemNode(c));
-			}
-			node.IsExpanded = true;
-		}
+	public bool OpenPath(string path)
+	{
+		if (string.IsNullOrEmpty(path)) return false;
+		return _launcher.Open(path);
+	}
 
-		public async Task<IList<DownloadItemViewModel>> ScanFolderAsync(DriveItemInfo folder)
-		{
-			var results = new System.Collections.Generic.List<DownloadItemViewModel>();
-			var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
-			var queue = new System.Collections.Generic.Queue<DriveItemInfo>();
-			queue.Enqueue(folder);
-			while (queue.Count > 0)
-			{
-				var f = queue.Dequeue();
-				var fakeShared = new SharedItemInfo { Id = f.Id, RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
-				var children = await _svc.ListChildrenAsync(fakeShared);
-				foreach (var c in children)
-				{
-					if (c.IsFolder) queue.Enqueue(c);
-					else if (videoExts.Any(e => c.Name.EndsWith(e, System.StringComparison.OrdinalIgnoreCase))) results.Add(new DownloadItemViewModel(c));
-				}
-			}
-			return results;
-		}
 
 		private readonly System.Threading.SemaphoreSlim _downloadSemaphore = new System.Threading.SemaphoreSlim(3);
 

@@ -11,6 +11,7 @@ namespace OneDriveFileDownloader.Core.Services
 		public string LastClientId { get; set; } = string.Empty;
 		public string LastDownloadFolder { get; set; } = string.Empty;
 		public UxOption SelectedUx { get; set; } = UxOption.Minimal;
+		public bool ScanOnSelection { get; set; } = true;
 	}
 
 	public static class SettingsStore

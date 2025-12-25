@@ -11,6 +11,7 @@
       <Button Name="MinimalBtn" Content="Minimal" Margin="4" />
       <Button Name="DashboardBtn" Content="Dashboard" Margin="4" />
       <Button Name="ExplorerBtn" Content="Explorer" Margin="4" />
+      <Button Name="SignInBtn" Content="Sign in" Margin="4" />
       <Button Name="SettingsBtn" Content="Settings" Margin="8,0,0,0" />
     </StackPanel>
     <ContentControl Name="MainContent" />
