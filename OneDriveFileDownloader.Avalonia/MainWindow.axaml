@@ -8,15 +8,15 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8">
       <Image Width="32" Height="32" Source="{Binding UserThumbnail, Converter={StaticResource BytesToBitmapConverter}}" Margin="0,0,8,0" />
       <TextBlock Text="{Binding UserDisplayName}" VerticalAlignment="Center" Margin="0,0,16,0" />
-      <Button Name="MinimalBtn" Content="Minimal" Margin="4" />
-      <Button Name="DashboardBtn" Content="Dashboard" Margin="4" />
-      <Button Name="ExplorerBtn" Content="Explorer" Margin="4" />
-      <Button Name="SignInBtn" Content="Sign in" Margin="4" />
-      <Button Name="SettingsBtn" Content="Settings" Margin="8,0,0,0" />
+      <Button x:Name="MinimalBtn" Content="Minimal" Margin="4" />
+      <Button x:Name="DashboardBtn" Content="Dashboard" Margin="4" />
+      <Button x:Name="ExplorerBtn" Content="Explorer" Margin="4" />
+      <Button x:Name="SignInBtn" Content="Sign in" Margin="4" />
+      <Button x:Name="SettingsBtn" Content="Settings" Margin="8,0,0,0" />
     </StackPanel>
-    <ContentControl Name="MainContent" />
     <Border DockPanel.Dock="Bottom" Background="Transparent" Padding="8">
-      <TextBlock Text="{Binding StatusText}" Name="StatusTextBlock" />
+      <TextBlock Text="{Binding StatusText}" x:Name="StatusTextBlock" />
     </Border>
+    <ContentControl x:Name="MainContent" />
   </DockPanel>
 </Window>

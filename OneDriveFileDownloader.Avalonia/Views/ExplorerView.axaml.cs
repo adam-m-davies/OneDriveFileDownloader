@@ -16,14 +16,24 @@ public partial class ExplorerView : UserControl
 	public ExplorerView()
 	{
 		InitializeComponent();
-		this.AttachedToVisualTree += (s, e) => { _vm = DataContext as OneDriveFileDownloader.UI.ViewModels.MainViewModel; ScanFolderBtn.Click += ScanFolderBtn_Click; };
-		FolderTree.SelectionChanged += FolderTree_SelectionChanged;
-		ContentsList.DoubleTapped += ContentsList_DoubleTapped;
+
+		var scanFolderBtn = this.FindControl<Button>("ScanFolderBtn");
+		var folderTree = this.FindControl<TreeView>("FolderTree");
+		var contentsList = this.FindControl<ListBox>("ContentsList");
+
+		this.AttachedToVisualTree += (s, e) => { 
+			_vm = DataContext as OneDriveFileDownloader.UI.ViewModels.MainViewModel; 
+			if (scanFolderBtn != null) scanFolderBtn.Click += ScanFolderBtn_Click; 
+		};
+		if (folderTree != null) folderTree.SelectionChanged += FolderTree_SelectionChanged;
+		if (contentsList != null) contentsList.DoubleTapped += ContentsList_DoubleTapped;
 	}
 
 	private void FolderTree_SelectionChanged(object sender, SelectionChangedEventArgs e)
 	{
-		if (FolderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn)
+		var folderTree = this.FindControl<TreeView>("FolderTree");
+		var contentsList = this.FindControl<ListBox>("ContentsList");
+		if (folderTree != null && folderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn)
 		{
 			// expand node (load children)
 			_ = Task.Run(async () =>
@@ -34,7 +44,7 @@ public partial class ExplorerView : UserControl
 					var results = await _vm.ScanFolderAsync(dn.Item);
 					await Dispatcher.UIThread.InvokeAsync(() =>
 					{
-						ContentsList.ItemsSource = results;
+						if (contentsList != null) contentsList.ItemsSource = results;
 					});
 				}
 			});
@@ -51,19 +61,22 @@ public partial class ExplorerView : UserControl
 
 	private void ScanFolderBtn_Click(object sender, RoutedEventArgs e)
 	{
-		if (FolderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn && dn.IsFolder)
+		var folderTree = this.FindControl<TreeView>("FolderTree");
+		var contentsList = this.FindControl<ListBox>("ContentsList");
+		if (folderTree != null && folderTree.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DriveItemNode dn && dn.IsFolder)
 		{
 			_ = Task.Run(async () =>
 			{
 				var results = await _vm.ScanFolderAsync(dn.Item);
-				await Dispatcher.UIThread.InvokeAsync(() => { ContentsList.ItemsSource = results; });
+				await Dispatcher.UIThread.InvokeAsync(() => { if (contentsList != null) contentsList.ItemsSource = results; });
 			});
 		}
 	}
 
 	private void ContentsList_DoubleTapped(object sender, RoutedEventArgs e)
 	{
-		if (ContentsList.SelectedItem is DriveItemInfo di && !di.IsFolder)
+		var contentsList = this.FindControl<ListBox>("ContentsList");
+		if (contentsList != null && contentsList.SelectedItem is DriveItemInfo di && !di.IsFolder)
 		{
 			var item = new OneDriveFileDownloader.UI.ViewModels.DownloadItemViewModel(di);
 			_ = Task.Run(async () => { await _vm.DownloadAsync(item); });

@@ -5,11 +5,12 @@
         Title="Sign in" Width="400" Height="160">
   <StackPanel Margin="12" Spacing="8">
     <TextBlock Text="Client ID" />
-    <TextBox Name="ClientIdBox" />
-    <CheckBox Name="SaveCheck" Content="Save client id" />
+    <TextBox x:Name="ClientIdBox" />
+    <CheckBox x:Name="SaveCheck" Content="Save client id" IsChecked="True" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Name="SaveBtn" Content="Sign in" />
-      <Button Name="CancelBtn" Content="Cancel" />
+      <Button x:Name="SaveBtn" Content="Sign in" />
+      <Button x:Name="CancelBtn" Content="Cancel" />
     </StackPanel>
+    <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontSize="12" Foreground="Gray" Margin="0,8,0,0" />
   </StackPanel>
 </Window>

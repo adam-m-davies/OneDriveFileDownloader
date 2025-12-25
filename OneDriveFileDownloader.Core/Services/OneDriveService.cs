@@ -28,15 +28,21 @@ namespace OneDriveFileDownloader.Core.Services
 				.Build();
 		}
 
-		public async Task<string> AuthenticateInteractiveAsync()
+		public async Task<string> AuthenticateInteractiveAsync(Action<string> deviceCodeCallback = null, IntPtr? parentWindow = null)
 		{
 			if (_pca == null) throw new InvalidOperationException("Call Configure(clientId) first.");
 
 			try
 			{
-				var result = await _pca.AcquireTokenInteractive(_scopes)
-					.WithPrompt(Prompt.SelectAccount)
-					.ExecuteAsync();
+				var builder = _pca.AcquireTokenInteractive(_scopes)
+					.WithPrompt(Prompt.SelectAccount);
+
+				if (parentWindow.HasValue && parentWindow.Value != IntPtr.Zero)
+				{
+					builder = builder.WithParentActivityOrWindow(parentWindow.Value);
+				}
+
+				var result = await builder.ExecuteAsync();
 
 				// Interactive auth completed; token cache is seeded.
 
@@ -44,22 +50,26 @@ namespace OneDriveFileDownloader.Core.Services
 			}
 			catch (Microsoft.Identity.Client.MsalServiceException se) when ((se.ErrorCode != null && se.ErrorCode.IndexOf("invalid_request", StringComparison.OrdinalIgnoreCase) >= 0) || (se.Message != null && se.Message.IndexOf("redirect", StringComparison.OrdinalIgnoreCase) >= 0))
 			{
-				Console.WriteLine("Interactive sign-in failed due to redirect URI mismatch. Ensure your app registration includes 'http://localhost' (or 'https://login.microsoftonline.com/common/oauth2/nativeclient') as a redirect URI for your client id. Falling back to device code flow.");
+				if (deviceCodeCallback != null) deviceCodeCallback("Interactive sign-in failed (redirect URI mismatch). Falling back to device code flow...");
+				else Console.WriteLine("Interactive sign-in failed due to redirect URI mismatch. Ensure your app registration includes 'http://localhost' (or 'https://login.microsoftonline.com/common/oauth2/nativeclient') as a redirect URI for your client id. Falling back to device code flow.");
 
 				var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
 				{
-					Console.WriteLine(callback.Message);
+					if (deviceCodeCallback != null) deviceCodeCallback(callback.Message);
+					else Console.WriteLine(callback.Message);
 					return Task.CompletedTask;
 				}).ExecuteAsync();
 
 				return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
 			}
-			catch (MsalException)
+			catch (MsalException ex)
 			{
+				if (deviceCodeCallback != null) deviceCodeCallback($"Interactive sign-in failed: {ex.Message}. Falling back to device code flow...");
 				// other MSAL exception - fallback to device code
 				var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
 				{
-					Console.WriteLine(callback.Message);
+					if (deviceCodeCallback != null) deviceCodeCallback(callback.Message);
+					else Console.WriteLine(callback.Message);
 					return Task.CompletedTask;
 				}).ExecuteAsync();
 

@@ -23,6 +23,8 @@ Quick start
 
 Repository structure
 - `OneDriveFileDownloader.Core` – library containing `IOneDriveService`, `IDownloadRepository`, `SqliteDownloadRepository`, and the OneDrive file logic
+- `OneDriveFileDownloader.UI` – shared UI logic and ViewModels (MVVM)
+- `OneDriveFileDownloader.Avalonia` – cross-platform desktop UI using Avalonia UI
 - `OneDriveFileDownloader.Console` – small console app that exercises the library
 
 Extensibility

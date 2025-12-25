@@ -9,25 +9,22 @@ public partial class MinimalView : UserControl
 	public MinimalView()
 	{
 		InitializeComponent();
-		this.AttachedToVisualTree += (s, e) => { /* placeholder */ };
-		VideosList.DoubleTapped += VideosList_DoubleTapped;
+		this.AttachedToVisualTree += (s, e) => { 
+			var videosList = this.FindControl<ListBox>("VideosList");
+			if (videosList != null) videosList.DoubleTapped += VideosList_DoubleTapped;
+		};
 	}
 
 	private void VideosList_DoubleTapped(object sender, global::Avalonia.Interactivity.RoutedEventArgs e)
 	{
-		if (VideosList.SelectedItem is OneDriveFileDownloader.Core.Models.DriveItemInfo di)
+		var videosList = this.FindControl<ListBox>("VideosList");
+		if (videosList != null && videosList.SelectedItem is OneDriveFileDownloader.UI.ViewModels.DownloadItemViewModel itemVm)
 		{
 			var vm = DataContext as OneDriveFileDownloader.UI.ViewModels.MainViewModel;
 			if (vm != null)
 			{
-				var item = new OneDriveFileDownloader.UI.ViewModels.DownloadItemViewModel(new OneDriveFileDownloader.Core.Models.DriveItemInfo { Id = di.Id, DriveId = di.DriveId, Name = di.Name, IsFolder = di.IsFolder, Size = di.Size });
-				_ = Task.Run(async () => await vm.DownloadAsync(item));
+				_ = Task.Run(async () => await vm.DownloadAsync(itemVm));
 			}
 		}
-	}
-
-	public void InitializeComponent()
-	{
-		AvaloniaXamlLoader.Load(this);
 	}
 }

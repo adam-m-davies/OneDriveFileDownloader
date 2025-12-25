@@ -4,7 +4,7 @@
              x:Class="OneDriveFileDownloader.Avalonia.Views.MinimalView">
   <StackPanel Margin="8">
     <TextBlock Text="Minimal" FontSize="18" FontWeight="Bold" />
-    <ListBox Name="VideosList" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo, Mode=TwoWay}" Height="400">
+    <ListBox x:Name="VideosList" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo, Mode=TwoWay}" Height="400">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" AutomationProperties.Name="{Binding File.Name}">

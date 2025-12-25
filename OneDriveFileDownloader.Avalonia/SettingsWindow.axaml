@@ -5,23 +5,23 @@
         Width="500" Height="200" Title="Settings">
   <StackPanel Margin="12" Spacing="8">
     <TextBlock Text="Client ID" />
-    <TextBox Name="ClientIdBox" />
+    <TextBox x:Name="ClientIdBox" />
     <TextBlock Text="Local downloads folder" />
     <StackPanel Orientation="Horizontal" Spacing="8">
-      <TextBox Name="FolderBox" Width="350" />
-      <Button Name="BrowseBtn" Content="Browse" />
+      <TextBox x:Name="FolderBox" Width="350" />
+      <Button x:Name="BrowseBtn" Content="Browse" />
     </StackPanel>
     <TextBlock Text="UI Experience" />
-    <ComboBox Name="UxBox" SelectedIndex="0">
+    <ComboBox x:Name="UxBox" SelectedIndex="0">
       <ComboBoxItem Content="Minimal" />
       <ComboBoxItem Content="Dashboard" />
       <ComboBoxItem Content="Explorer" />
     </ComboBox>
-    <CheckBox Name="ScanOnSelectionBox" Content="Automatically scan folder on selection" IsChecked="True" />
-    <Button Name="ClearClientBtn" Content="Clear saved Client ID" />
+    <CheckBox x:Name="ScanOnSelectionBox" Content="Automatically scan folder on selection" IsChecked="True" />
+    <Button x:Name="ClearClientBtn" Content="Clear saved Client ID" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Name="SaveBtn" Content="Save" />
-      <Button Name="CancelBtn" Content="Cancel" />
+      <Button x:Name="SaveBtn" Content="Save" />
+      <Button x:Name="CancelBtn" Content="Cancel" />
     </StackPanel>
   </StackPanel>
 </Window>

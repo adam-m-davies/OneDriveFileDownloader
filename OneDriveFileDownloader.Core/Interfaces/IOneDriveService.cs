@@ -14,7 +14,7 @@ namespace OneDriveFileDownloader.Core.Interfaces
 		/// <summary>
 		/// Runs interactive login (opens browser) or device code fallback and returns the signed-in account display name.
 		/// </summary>
-		Task<string> AuthenticateInteractiveAsync();
+		Task<string> AuthenticateInteractiveAsync(System.Action<string> deviceCodeCallback = null, System.IntPtr? parentWindow = null);
 
 		/// <summary>
 		/// Returns profile information for the signed-in user, including display name and optional thumbnail bytes.

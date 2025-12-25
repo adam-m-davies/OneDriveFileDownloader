@@ -42,7 +42,17 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		private readonly OneDriveFileDownloader.UI.Services.IProcessLauncher _launcher;
 
 		private bool _scanOnSelection;
-		public bool ScanOnSelection { get => _scanOnSelection; set { if (Set(ref _scanOnSelection, value)) { _settings.SelectedUx = _settings.SelectedUx; _settings.ScanOnSelection = value; SettingsStore.Save(_settings); } } }
+		public bool ScanOnSelection { get => _scanOnSelection; set { if (Set(ref _scanOnSelection, value)) { _settings.ScanOnSelection = value; SettingsStore.Save(_settings); } } }
+
+		public void UpdateSettings(Settings settings)
+		{
+			if (settings == null) return;
+			_settings.LastClientId = settings.LastClientId;
+			_settings.LastDownloadFolder = settings.LastDownloadFolder;
+			_settings.SelectedUx = settings.SelectedUx;
+			_settings.ScanOnSelection = settings.ScanOnSelection;
+			ScanOnSelection = settings.ScanOnSelection;
+		}
 
 		public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null, OneDriveFileDownloader.UI.Services.IProcessLauncher launcher = null)
 		{
@@ -68,14 +78,24 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		});
 		}
 
-		public async Task SignInAsync(string clientId, bool save)
+		public async Task SignInAsync(string clientId, bool save, IntPtr? parentWindow = null, Action<string> statusCallback = null)
 		{
 			_svc.Configure(clientId);
 			StatusText = "Authenticating...";
-			var user = await _svc.AuthenticateInteractiveAsync();
-			StatusText = "Signed in.";
+			statusCallback?.Invoke(StatusText);
 
-			if (save) SettingsStore.SaveLastClientId(clientId);
+			var user = await _svc.AuthenticateInteractiveAsync(msg => {
+				StatusText = msg;
+				statusCallback?.Invoke(msg);
+			}, parentWindow);
+			StatusText = "Signed in.";
+			statusCallback?.Invoke(StatusText);
+
+			if (save)
+			{
+				_settings.LastClientId = clientId;
+				SettingsStore.Save(_settings);
+			}
 
 			var prof = await _svc.GetUserProfileAsync();
 			UserDisplayName = prof.DisplayName;

@@ -11,6 +11,6 @@
     <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
   </Application.Resources>
   <Application.Styles>
-    <Styles />
+    <FluentTheme />
   </Application.Styles>
 </Application>

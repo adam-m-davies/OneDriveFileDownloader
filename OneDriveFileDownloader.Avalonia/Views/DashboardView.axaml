@@ -8,7 +8,7 @@
       <Button Content="Open downloads folder" Command="{Binding OpenDownloadsCommand}" />
       <Button Content="Scan last shared item" Command="{Binding ScanLastCommand}" Margin="8,0,0,0" />
     </StackPanel>
-    <ListBox Name="RecentList" ItemsSource="{Binding RecentDownloads}" Height="300">
+    <ListBox x:Name="RecentList" ItemsSource="{Binding RecentDownloads}" Height="300">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal" Spacing="8">

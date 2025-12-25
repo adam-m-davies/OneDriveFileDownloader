@@ -7,8 +7,8 @@
     <CheckBox Content="Scan on selection" IsChecked="{Binding ScanOnSelection}" Margin="0,4" />
     <Grid ColumnDefinitions="300,*" RowDefinitions="Auto">
       <StackPanel Grid.Column="0" Margin="0,8,8,0">
-        <Button Name="ScanFolderBtn" Content="Scan folder" IsVisible="{Binding !ScanOnSelection}" />
-        <TreeView Name="FolderTree" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
+        <Button x:Name="ScanFolderBtn" Content="Scan folder" IsVisible="{Binding !ScanOnSelection}" />
+        <TreeView x:Name="FolderTree" ItemsSource="{Binding FolderRoots}" Margin="0,8,8,8">
         <TreeView.ItemTemplate>
           <DataTemplate>
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -19,7 +19,7 @@
       </TreeView>
       </StackPanel>
 
-      <ListBox Name="ContentsList" Grid.Column="1" ItemsSource="{Binding Videos}" Margin="8,8,0,8">
+      <ListBox x:Name="ContentsList" Grid.Column="1" ItemsSource="{Binding Videos}" Margin="8,8,0,8">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <StackPanel Orientation="Horizontal" Spacing="8">
