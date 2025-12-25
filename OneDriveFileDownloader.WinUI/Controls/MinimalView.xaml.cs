@@ -23,5 +23,13 @@ namespace OneDriveFileDownloader.WinUI.Controls
         {
             if (VideosList.SelectedItem is DownloadItemViewModel vm) await _vm.DownloadAsync(vm);
         }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button b && b.DataContext is DownloadItemViewModel vm)
+            {
+                vm.Cancel();
+            }
+        }
     }
 }

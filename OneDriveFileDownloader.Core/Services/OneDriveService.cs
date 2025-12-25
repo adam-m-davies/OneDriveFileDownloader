@@ -163,25 +163,25 @@ namespace OneDriveFileDownloader.Core.Services
             return profile;
         }
 
-        public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null)
+        public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
         {
             // use drive and item ids
             // download content via REST
             var token = await EnsureAccessTokenAsync();
             using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $"https://graph.microsoft.com/v1.0/drives/{file.DriveId}/items/{file.Id}/content");
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var res = await _http.SendAsync(req, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+            var res = await _http.SendAsync(req, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellation);
             res.EnsureSuccessStatusCode();
-            using var stream = await res.Content.ReadAsStreamAsync();
+            using var stream = await res.Content.ReadAsStreamAsync(cancellation);
 
             using (var sha1 = SHA1.Create())
             {
                 var buffer = new byte[81920];
                 int read;
                 long total = 0;
-                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, cancellation)) > 0)
                 {
-                    await destination.WriteAsync(buffer, 0, read);
+                    await destination.WriteAsync(buffer, 0, read, cancellation);
                     sha1.TransformBlock(buffer, 0, read, null, 0);
                     total += read;
                     try { progress?.Report(total); } catch { }

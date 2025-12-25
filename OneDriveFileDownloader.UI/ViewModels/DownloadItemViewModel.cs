@@ -19,8 +19,16 @@ namespace OneDriveFileDownloader.UI.ViewModels
         public string? Status
         {
             get => _status;
-            set => Set(ref _status, value);
+            set
+            {
+                if (Set(ref _status, value))
+                {
+                    RaisePropertyChanged(nameof(IsDownloading));
+                }
+            }
         }
+
+        public bool IsDownloading => string.Equals(Status, "Downloading", StringComparison.OrdinalIgnoreCase);
 
         public CancellationTokenSource Cancellation { get; } = new CancellationTokenSource();
 

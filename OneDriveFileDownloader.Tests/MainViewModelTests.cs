@@ -19,13 +19,16 @@ namespace OneDriveFileDownloader.Tests
 
             public void Configure(string clientId) { }
             public Task<string> AuthenticateInteractiveAsync() => Task.FromResult("fakeuser@example.com");
-            public Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null)
+            public async Task<DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination, IProgress<long>? progress = null, CancellationToken cancellation = default)
             {
+                // simulate some work and respect cancellation
                 var bytes = Encoding.UTF8.GetBytes("dummycontent");
-                destination.Write(bytes, 0, bytes.Length);
+                await Task.Delay(200, cancellation);
+                cancellation.ThrowIfCancellationRequested();
+                await destination.WriteAsync(bytes, 0, bytes.Length, cancellation);
                 progress?.Report(bytes.Length);
                 var sha = "deadbeef";
-                return Task.FromResult(new DownloadResult { Sha1Hash = sha, Size = bytes.Length });
+                return new DownloadResult { Sha1Hash = sha, Size = bytes.Length };
             }
 
             public Task<IList<DriveItemInfo>> ListChildrenAsync(SharedItemInfo sharedItem)
@@ -142,6 +145,28 @@ namespace OneDriveFileDownloader.Tests
             var vm = new MainViewModel(svc, repo);
             var results = await vm.ScanFolderAsync(new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "fold1", IsFolder = true });
             Assert.Equal(2, results.Count);
+        }
+
+        [Fact]
+        public async Task DownloadAsync_Cancels_WhenRequested()
+        {
+            var svc = new FakeOneDriveService();
+            var repo = new FakeRepo();
+            var vm = new MainViewModel(svc, repo);
+            var file = new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video.mp4", IsFolder = false, Size = 12 };
+            var item = new DownloadItemViewModel(file);
+
+            // ensure settings have a download folder
+            var settings = OneDriveFileDownloader.Core.Services.SettingsStore.Load();
+            settings.LastDownloadFolder = Path.GetTempPath();
+            OneDriveFileDownloader.Core.Services.SettingsStore.Save(settings);
+
+            var t = vm.DownloadAsync(item);
+            await Task.Delay(50);
+            item.Cancel();
+            await Task.WhenAny(t, Task.Delay(2000));
+
+            Assert.Equal("Canceled", item.Status);
         }
     }
 }

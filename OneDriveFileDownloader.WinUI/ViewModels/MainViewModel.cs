@@ -138,7 +138,7 @@ namespace OneDriveFileDownloader.WinUI.ViewModels
             {
                 using (var fs = File.Create(temp))
                 {
-                    var dl = await _svc.DownloadFileAsync(item.File, fs, progress);
+                    var dl = await _svc.DownloadFileAsync(item.File, fs, progress, item.Cancellation.Token);
                     // check duplicate
                     if (!string.IsNullOrEmpty(dl.Sha1Hash) && await repo.HasHashAsync(dl.Sha1Hash))
                     {

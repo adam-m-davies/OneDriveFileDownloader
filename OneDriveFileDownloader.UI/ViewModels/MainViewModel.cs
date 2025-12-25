@@ -199,7 +199,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
             {
                 using (var fs = File.Create(temp))
                 {
-                    var dl = await _svc.DownloadFileAsync(item.File, fs, progress);
+                    var dl = await _svc.DownloadFileAsync(item.File, fs, progress, item.Cancellation.Token);
                     if (!string.IsNullOrEmpty(dl.Sha1Hash) && await _repo.HasHashAsync(dl.Sha1Hash))
                     {
                         fs.Close();
