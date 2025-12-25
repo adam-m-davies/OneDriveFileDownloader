@@ -23,17 +23,69 @@ namespace OneDriveFileDownloader.WinUI.Pages
             // build a simple tree (top-level shared items as roots)
             foreach (var s in _vm.SharedItems)
             {
-                var node = new TreeViewNode { Content = s };
-                FolderTree.RootNodes.Add(node);
+                var root = new TreeViewNode { Content = s };
+                FolderTree.RootNodes.Add(root);
             }
 
             FolderTree.ItemInvoked += async (s, e) =>
             {
-                if (e.InvokedItem is TreeViewNode n && n.Content is SharedItemInfo si)
+                if (e.InvokedItem is TreeViewNode n)
                 {
-                    var children = await _vm.GetChildrenAsync(si);
+                    if (n.Content is SharedItemInfo si)
+                    {
+                        // show immediate children in list and populate tree nodes
+                        var children = await _vm.GetChildrenAsync(si);
+                        ContentsList.Items.Clear();
+                        n.Children.Clear();
+                        foreach (var c in children)
+                        {
+                            ContentsList.Items.Add(c);
+                            n.Children.Add(new TreeViewNode { Content = new DriveItemNode(c) });
+                        }
+                    }
+                    else if (n.Content is DriveItemNode dn)
+                    {
+                        if (dn.IsFolder)
+                        {
+                            await _vm.ExpandNodeAsync(dn);
+                            // add tree nodes for children
+                            n.Children.Clear();
+                            foreach (var c in dn.Children)
+                            {
+                                n.Children.Add(new TreeViewNode { Content = c });
+                            }
+                        }
+                        else
+                        {
+                            // file clicked: show file in contents list
+                            ContentsList.Items.Clear();
+                            ContentsList.Items.Add(dn.Item);
+                        }
+                    }
+                }
+            };
+
+            ContentsList.ItemClick += (s, e) =>
+            {
+                // set selected item (handled via UI events for download/scan)
+            };
+
+            ScanFolderButton.Click += async (s, e) =>
+            {
+                if (ContentsList.SelectedItem is DriveItemInfo di && di.IsFolder)
+                {
+                    var results = await _vm.ScanFolderAsync(di);
                     ContentsList.Items.Clear();
-                    foreach (var c in children) ContentsList.Items.Add(c);
+                    foreach (var r in results) ContentsList.Items.Add(r.File);
+                }
+            };
+
+            DownloadSelectedButton.Click += async (s, e) =>
+            {
+                if (ContentsList.SelectedItem is DriveItemInfo fi && !fi.IsFolder)
+                {
+                    var item = new DownloadItemViewModel(fi);
+                    await _vm.DownloadAsync(item);
                 }
             };
         }

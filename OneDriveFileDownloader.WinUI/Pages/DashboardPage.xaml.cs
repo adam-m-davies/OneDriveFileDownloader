@@ -26,6 +26,20 @@ namespace OneDriveFileDownloader.WinUI.Pages
                     _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = p, UseShellExecute = true });
                 }
             };
+
+            this.Loaded += async (s, e) =>
+            {
+                RecentList.ItemsSource = _vm.RecentDownloads;
+                await _vm.LoadRecentDownloadsAsync(20);
+            };
+
+            RecentList.ItemClick += (s, e) =>
+            {
+                if (e.ClickedItem is OneDriveFileDownloader.Core.Models.DownloadRecord r && !string.IsNullOrEmpty(r.LocalPath) && File.Exists(r.LocalPath))
+                {
+                    _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = r.LocalPath, UseShellExecute = true });
+                }
+            };
         }
 
         private async Task ScanLast()

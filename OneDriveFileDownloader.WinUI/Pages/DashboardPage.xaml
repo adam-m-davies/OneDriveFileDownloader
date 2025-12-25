@@ -14,6 +14,15 @@
         </StackPanel>
 
         <TextBlock Text="Recent downloads" Margin="0,12,0,0" />
-        <ListView x:Name="RecentList" Height="200" />
+        <ListView x:Name="RecentList" Height="200" IsItemClickEnabled="True">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:DownloadRecord">
+                    <StackPanel Orientation="Horizontal" Padding="4">
+                        <TextBlock Text="{x:Bind FileName}" Width="200" />
+                        <TextBlock Text="{x:Bind DownloadedAtUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Margin="8,0,0,0" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
     </StackPanel>
 </Page>
