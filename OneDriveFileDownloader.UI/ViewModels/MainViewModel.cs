@@ -50,6 +50,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public RelayCommand SignOutCommand { get; }
 		public RelayCommand OpenSettingsCommand { get; }
 		public RelayCommand NavigateCommand { get; }
+		public RelayCommand OpenFileCommand { get; }
 
 		private bool _isAuthenticated;
 		public bool IsAuthenticated { get => _isAuthenticated; set => Set(ref _isAuthenticated, value); }
@@ -108,6 +109,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			SignOutCommand = new RelayCommand(async _ => await SignOutAsync());
 			OpenSettingsCommand = new RelayCommand(_ => RequestSettings?.Invoke());
 			NavigateCommand = new RelayCommand(p => RequestNavigate?.Invoke(p?.ToString() ?? "Minimal"));
+			OpenFileCommand = new RelayCommand(p => { if (p is DownloadRecord r) OpenPath(r.LocalPath); });
 
 			_ = CheckAuthenticationAsync();
 		}
@@ -188,11 +190,12 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public async Task LoadSharedItemsAsync()
 		{
 			SharedItems.Clear();
+			FolderRoots.Clear();
 			var items = await _svc.ListSharedWithMeAsync();
 			foreach (var s in items) SharedItems.Add(s);
 			StatusText = SharedItems.Count == 0 ? "No shared items found." : $"Found {SharedItems.Count} shared items.";
 
-			if (FolderRoots.Count == 0 && SharedItems.Count > 0)
+			if (SharedItems.Count > 0)
 			{
 				foreach (var s in SharedItems)
 				{
@@ -241,15 +244,18 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
 		public async Task<DriveItemNode> BuildFolderNodeAsync(SharedItemInfo root)
 		{
-			var node = new DriveItemNode(new DriveItemInfo { Id = root.RemoteItemId, DriveId = root.RemoteDriveId, Name = root.Name, IsFolder = true });
-			node.OnExpanded += async () => await ExpandNodeAsync(node);
-			await ExpandNodeAsync(node);
+			var node = new DriveItemNode(new DriveItemInfo { Id = root.RemoteItemId, DriveId = root.RemoteDriveId, Name = root.Name, IsFolder = root.IsFolder });
+			if (node.IsFolder)
+			{
+				node.OnExpanded += async () => await ExpandNodeAsync(node);
+				await ExpandNodeAsync(node);
+			}
 			return node;
 		}
 
 		public async Task ExpandNodeAsync(DriveItemNode node)
 		{
-			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
+			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name, IsFolder = true };
 			var children = await _svc.ListChildrenAsync(fakeShared);
 			
 			// Use Dispatcher to update collection if needed, but for now assume UI thread
@@ -269,6 +275,29 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			Videos.Clear();
 			var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
 
+			if (!selected.IsFolder)
+			{
+				if (videoExts.Any(e => selected.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+				{
+					var fileInfo = new DriveItemInfo
+					{
+						Id = selected.RemoteItemId,
+						DriveId = selected.RemoteDriveId,
+						Name = selected.Name,
+						Size = selected.Size,
+						Sha1Hash = selected.Sha1Hash,
+						IsFolder = false
+					};
+					Videos.Add(new DownloadItemViewModel(fileInfo));
+					StatusText = "Found 1 video file.";
+				}
+				else
+				{
+					StatusText = "Shared item is not a video file.";
+				}
+				return;
+			}
+
 			var rootChildren = await _svc.ListChildrenAsync(selected);
 			var videos = rootChildren.Where(c => !c.IsFolder && videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase))).ToList();
 			var subfolders = new System.Collections.Generic.Queue<DriveItemInfo>(rootChildren.Where(c => c.IsFolder));
@@ -276,7 +305,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			while (subfolders.Count > 0)
 			{
 				var folder = subfolders.Dequeue();
-				var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+				var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name, IsFolder = true };
 				var children = await _svc.ListChildrenAsync(fakeShared);
 				foreach (var c in children)
 				{

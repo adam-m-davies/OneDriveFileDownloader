@@ -38,7 +38,7 @@ namespace OneDriveFileDownloader.Tests
 		public async Task ScanAsync_PopulatesVideos()
 		{
 			var svc = new FakeOneDriveService();
-			var root = new SharedItemInfo { Id = "s1", Name = "Root", RemoteDriveId = "d", RemoteItemId = "r1" };
+			var root = new SharedItemInfo { Id = "s1", Name = "Root", RemoteDriveId = "d", RemoteItemId = "r1", IsFolder = true };
 			svc.Shared.Add(root);
 			svc.Children["r1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "sub", IsFolder = true } };
 			svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
@@ -98,7 +98,7 @@ var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
         {
             var svc = new FakeOneDriveService();
             // create folder structure
-            var rootFolder = new SharedItemInfo { Id = "fold1", RemoteItemId = "fold1", RemoteDriveId = "d", Name = "root" };
+            var rootFolder = new SharedItemInfo { Id = "fold1", RemoteItemId = "fold1", RemoteDriveId = "d", Name = "root", IsFolder = true };
             svc.Children["fold1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "sub1", DriveId = "d", Name = "sub", IsFolder = true } };
             svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 
@@ -123,15 +123,15 @@ var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 			svc.Children["sub1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f2", DriveId = "d", Name = "video2.mp4", IsFolder = false } };
 			var repo = new FakeRepo();
 			var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
-			var results = await vm.ScanFolderAsync(new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "fold1", IsFolder = true });
-			Assert.Equal(2, results.Count);
+			await vm.ScanAsync(new SharedItemInfo { Id = "fold1", RemoteItemId = "fold1", RemoteDriveId = "d", Name = "fold1", IsFolder = true });
+			Assert.Equal(2, vm.Videos.Count);
 		}
 
         [Fact]
         public async Task PopulateFolderRoots_PopulatesRootsCollection()
         {
             var svc = new FakeOneDriveService();
-            var root = new SharedItemInfo { Id = "s1", Name = "Root", RemoteDriveId = "d", RemoteItemId = "r1" };
+            var root = new SharedItemInfo { Id = "s1", Name = "Root", RemoteDriveId = "d", RemoteItemId = "r1", IsFolder = true };
             svc.Shared.Add(root);
             svc.Children["r1"] = new List<DriveItemInfo> { new DriveItemInfo { Id = "f1", DriveId = "d", Name = "video1.mp4", IsFolder = false }, new DriveItemInfo { Id = "fold1", DriveId = "d", Name = "sub", IsFolder = true } };
             var repo = new FakeRepo();

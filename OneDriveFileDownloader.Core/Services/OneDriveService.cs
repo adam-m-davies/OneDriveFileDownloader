@@ -153,8 +153,26 @@ namespace OneDriveFileDownloader.Core.Services
 					var driveId = parentRef.GetProperty("driveId").GetString() ?? throw new InvalidDataException("driveId missing from sharedWithMe response");
 					var itemId = remote.GetProperty("id").GetString() ?? throw new InvalidDataException("item id missing from sharedWithMe response");
 					var id = el.GetProperty("id").GetString() ?? throw new InvalidDataException("id missing from sharedWithMe response");
-					var name = el.GetProperty("name").GetString() ?? string.Empty;
-					items.Add(new SharedItemInfo { Id = id, Name = name, RemoteDriveId = driveId, RemoteItemId = itemId });
+					var name = remote.TryGetProperty("name", out var n) ? n.GetString() : (el.TryGetProperty("name", out var n2) ? n2.GetString() : string.Empty);
+					
+					var isFolder = remote.TryGetProperty("folder", out _);
+					long? size = remote.TryGetProperty("size", out var s) ? s.GetInt64() : (long?)null;
+					string sha1 = string.Empty;
+					if (remote.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hh))
+					{
+						sha1 = hh.GetString();
+					}
+
+					items.Add(new SharedItemInfo 
+					{ 
+						Id = id, 
+						Name = name, 
+						RemoteDriveId = driveId, 
+						RemoteItemId = itemId,
+						IsFolder = isFolder,
+						Size = size,
+						Sha1Hash = sha1
+					});
 				}
 			}
 

@@ -26,7 +26,7 @@
       <ListBox x:Name="RecentList" ItemsSource="{Binding RecentDownloads}" IsVisible="{Binding RecentDownloads.Count, Converter={StaticResource CountToVisibleConverter}}" Background="Transparent" BorderThickness="0">
         <ListBox.ItemTemplate>
           <DataTemplate>
-            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12" DoubleTapped="OnItemDoubleTapped">
               <Grid ColumnDefinitions="Auto, *, Auto">
                 <TextBlock Grid.Column="0" Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,16,0" Foreground="{DynamicResource SystemAccentColor}" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
