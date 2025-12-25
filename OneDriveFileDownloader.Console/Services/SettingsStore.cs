@@ -7,6 +7,7 @@ namespace OneDriveFileDownloader.Console.Services
     internal class Settings
     {
         public string? LastClientId { get; set; }
+        public string? LastDownloadFolder { get; set; }
     }
 
     internal static class SettingsStore
@@ -28,14 +29,27 @@ namespace OneDriveFileDownloader.Console.Services
             }
         }
 
-        public static void SaveLastClientId(string clientId)
+        public static void Save(Settings settings)
         {
             try
             {
                 Directory.CreateDirectory(AppFolder);
-                var settings = new Settings { LastClientId = clientId };
                 var txt = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(FilePath, txt);
+            }
+            catch
+            {
+                // ignore write failures
+            }
+        }
+
+        public static void SaveLastClientId(string clientId)
+        {
+            try
+            {
+                var settings = Load();
+                settings.LastClientId = clientId;
+                Save(settings);
             }
             catch
             {

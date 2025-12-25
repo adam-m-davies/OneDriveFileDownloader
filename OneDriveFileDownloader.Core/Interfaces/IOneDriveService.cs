@@ -17,6 +17,11 @@ namespace OneDriveFileDownloader.Core.Interfaces
         Task<string> AuthenticateInteractiveAsync();
 
         /// <summary>
+        /// Returns profile information for the signed-in user, including display name and optional thumbnail bytes.
+        /// </summary>
+        Task<UserProfile> GetUserProfileAsync();
+
+        /// <summary>
         /// List items shared with the signed in user (folders or files).
         /// </summary>
         Task<IList<SharedItemInfo>> ListSharedWithMeAsync();

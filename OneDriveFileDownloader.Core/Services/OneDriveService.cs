@@ -113,7 +113,7 @@ namespace OneDriveFileDownloader.Core.Services
                     var id = el.GetProperty("id").GetString();
                     var name = el.GetProperty("name").GetString();
                     var size = el.TryGetProperty("size", out var s) ? s.GetInt64() : (long?)null;
-                    string sha1 = null;
+                    string? sha1 = null;
                     if (el.TryGetProperty("file", out var file) && file.TryGetProperty("hashes", out var hashes) && hashes.TryGetProperty("sha1Hash", out var hh))
                     {
                         sha1 = hh.GetString();
@@ -124,6 +124,43 @@ namespace OneDriveFileDownloader.Core.Services
             }
 
             return list;
+        }
+
+        public async Task<UserProfile> GetUserProfileAsync()
+        {
+            var token = await EnsureAccessTokenAsync();
+            var profile = new UserProfile();
+
+            using (var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://graph.microsoft.com/v1.0/me"))
+            {
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var res = await _http.SendAsync(req);
+                if (res.IsSuccessStatusCode)
+                {
+                    var raw = await res.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(raw);
+                    if (doc.RootElement.TryGetProperty("displayName", out var dn)) profile.DisplayName = dn.GetString();
+                }
+            }
+
+            // try to fetch thumbnail bytes (this endpoint returns raw image bytes)
+            try
+            {
+                using var req2 = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://graph.microsoft.com/v1.0/me/photo/$value");
+                req2.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var res2 = await _http.SendAsync(req2);
+                if (res2.IsSuccessStatusCode)
+                {
+                    var bytes = await res2.Content.ReadAsByteArrayAsync();
+                    if (bytes != null && bytes.Length > 0) profile.ThumbnailBytes = bytes;
+                }
+            }
+            catch
+            {
+                // ignore thumbnail fetch errors (permissions, not found, etc.)
+            }
+
+            return profile;
         }
 
         public async Task<Models.DownloadResult> DownloadFileAsync(DriveItemInfo file, Stream destination)
