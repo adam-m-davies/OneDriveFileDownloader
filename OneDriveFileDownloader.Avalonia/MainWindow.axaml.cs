@@ -5,6 +5,7 @@ using OneDriveFileDownloader.UI.ViewModels;
 using OneDriveFileDownloader.Avalonia.Views;
 using OneDriveFileDownloader.Core.Services;
 using System;
+using System.Threading.Tasks;
 
 namespace OneDriveFileDownloader.Avalonia;
 
@@ -28,6 +29,12 @@ public partial class MainWindow : Window
 		_vm.RequestSettings += () => {
 			var wnd = new SettingsWindow(_vm);
 			_ = wnd.ShowDialog(this);
+		};
+
+		_vm.RequestSharingUrl += async () => {
+			var dialog = new AddSharingUrlDialog();
+			var result = await dialog.ShowDialog<string>(this);
+			return result;
 		};
 
 		_vm.RequestNavigate += (viewName) => {

@@ -13,6 +13,9 @@ namespace OneDriveFileDownloader.Tests
 		public List<SharedItemInfo> Shared = new List<SharedItemInfo>();
 		public Dictionary<string, List<DriveItemInfo>> Children = new Dictionary<string, List<DriveItemInfo>>();
 
+		// Required by interface - not used in tests
+		public event System.Action<string> DiagnosticLog;
+
 		public void Configure(string clientId) { }
 		public Task<string> AuthenticateInteractiveAsync(System.Action<string> deviceCodeCallback = null, System.IntPtr? parentWindow = null) => Task.FromResult("fakeuser@example.com");
 		public Task<string> AuthenticateSilentAsync() => Task.FromResult("fakeuser@example.com");
@@ -45,6 +48,8 @@ namespace OneDriveFileDownloader.Tests
 		}
 
 		public Task<IList<SharedItemInfo>> ListSharedWithMeAsync() => Task.FromResult((IList<SharedItemInfo>)Shared);
+
+		public Task<SharedItemInfo> GetSharedItemFromUrlAsync(string sharingUrl) => Task.FromResult<SharedItemInfo>(null);
 
 		public Task<UserProfile> GetUserProfileAsync() => Task.FromResult(new UserProfile { DisplayName = "Fake User" });
 	}

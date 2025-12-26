@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OneDriveFileDownloader.Avalonia.Views.AddSharingUrlDialog"
+        Title="Add Shared Link"
+        Width="500"
+        Height="180"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Grid Margin="24" RowDefinitions="Auto, Auto, *, Auto">
+    <TextBlock Grid.Row="0" Text="Enter a OneDrive sharing URL:" Margin="0,0,0,8" />
+    
+    <TextBox Grid.Row="1" x:Name="UrlTextBox" Watermark="https://1drv.ms/... or https://onedrive.live.com/..." Margin="0,0,0,16" />
+    
+    <TextBlock Grid.Row="2" Text="Paste a sharing link from OneDrive to add shared folders that don't appear automatically." 
+               TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="OnCancel" />
+      <Button x:Name="AddButton" Content="Add" Width="80" Click="OnAdd" Classes="accent" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -105,15 +105,14 @@ var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
             var repo = new FakeRepo();
             var vm = new OneDriveFileDownloader.UI.ViewModels.MainViewModel(svc, repo);
 
-		    var node = await vm.BuildFolderNodeAsync(rootFolder);
-		    await vm.ExpandNodeAsync(node);
-			// Only folders are added to the tree
-			Assert.Single(node.Children);
+            var node = await vm.BuildFolderNodeAsync(rootFolder);
+            // Only folders are added to the tree
+            Assert.Equal(1, node.Children.Count);
 
-		    var subNode = node.Children[0];
-		    await vm.ExpandNodeAsync(subNode);
-		    // sub1 has one file, so 0 folders
-		    Assert.Empty(subNode.Children);
+            var subNode = node.Children[0];
+            await vm.ExpandNodeAsync(subNode);
+            // sub1 has one file, so 0 folders
+            Assert.Empty(subNode.Children);
         }
 
 		[Fact]

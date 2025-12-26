@@ -51,6 +51,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public RelayCommand OpenSettingsCommand { get; }
 		public RelayCommand NavigateCommand { get; }
 		public RelayCommand OpenFileCommand { get; }
+		public RelayCommand AddSharedUrlCommand { get; }
 
 		private bool _isAuthenticated;
 		public bool IsAuthenticated { get => _isAuthenticated; set => Set(ref _isAuthenticated, value); }
@@ -87,6 +88,9 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			_scanOnSelection = _settings.ScanOnSelection;
 			_launcher = launcher ?? new OneDriveFileDownloader.UI.Services.SystemProcessLauncher();
 
+			// Hook up diagnostic logging from the OneDrive service
+			_svc.DiagnosticLog += msg => System.Diagnostics.Debug.WriteLine($"[OneDrive] {msg}");
+
 			if (!string.IsNullOrEmpty(_settings.LastClientId))
 			{
 				_svc.Configure(_settings.LastClientId);
@@ -110,6 +114,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			OpenSettingsCommand = new RelayCommand(_ => RequestSettings?.Invoke());
 			NavigateCommand = new RelayCommand(p => RequestNavigate?.Invoke(p?.ToString() ?? "Minimal"));
 			OpenFileCommand = new RelayCommand(p => { if (p is DownloadRecord r) OpenPath(r.LocalPath); });
+			AddSharedUrlCommand = new RelayCommand(async _ => await AddSharedFromUrlAsync());
 
 			_ = CheckAuthenticationAsync();
 		}
@@ -133,6 +138,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public event Action RequestSignIn;
 		public event Action RequestSettings;
 		public event Action<string> RequestNavigate;
+		public event Func<Task<string>> RequestSharingUrl;
 
 		public async Task SignOutAsync()
 		{
@@ -195,6 +201,55 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// Add a shared item to the tree using its OneDrive sharing URL.
+		/// This is useful when items don't appear in the sharedWithMe API.
+		/// </summary>
+		public async Task AddSharedFromUrlAsync()
+		{
+			if (!IsAuthenticated)
+			{
+				StatusText = "Please sign in first.";
+				return;
+			}
+
+			// Request URL from UI
+			var url = RequestSharingUrl != null ? await RequestSharingUrl() : null;
+			if (string.IsNullOrWhiteSpace(url))
+			{
+				return;
+			}
+
+			StatusText = "Accessing shared item...";
+			try
+			{
+				var sharedItem = await _svc.GetSharedItemFromUrlAsync(url);
+				if (sharedItem == null)
+				{
+					StatusText = "Could not access the sharing URL. Make sure it's a valid OneDrive sharing link.";
+					return;
+				}
+
+				// Check if we already have this item
+				if (SharedItems.Any(s => s.RemoteDriveId == sharedItem.RemoteDriveId && s.RemoteItemId == sharedItem.RemoteItemId))
+				{
+					StatusText = $"'{sharedItem.Name}' is already in the list.";
+					return;
+				}
+
+				// Add to collections
+				SharedItems.Add(sharedItem);
+				var node = await BuildFolderNodeAsync(sharedItem);
+				FolderRoots.Add(node);
+
+				StatusText = $"Added '{sharedItem.Name}' successfully!";
+			}
+			catch (Exception ex)
+			{
+				StatusText = $"Error: {ex.Message}";
+			}
+		}
+
 		private void ApplyUserProfile(UserProfile profile)
 		{
 			UserDisplayName = profile.DisplayName;
@@ -247,6 +302,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			if (node.IsFolder)
 			{
 				node.OnExpanded += async () => await ExpandNodeAsync(node);
+				await ExpandNodeAsync(node);
 			}
 			return node;
 		}
@@ -254,16 +310,8 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public async Task ExpandNodeAsync(DriveItemNode node)
 		{
 			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name, IsFolder = true };
-			IList<DriveItemInfo> children;
-			try
-			{
-				children = await _svc.ListChildrenAsync(fakeShared);
-			}
-			catch
-			{
-				children = Array.Empty<DriveItemInfo>();
-			}
-
+			var children = await _svc.ListChildrenAsync(fakeShared);
+			
 			// Use Dispatcher to update collection if needed, but for now assume UI thread
 			node.Children.Clear();
 			foreach (var c in children.Where(x => x.IsFolder))
