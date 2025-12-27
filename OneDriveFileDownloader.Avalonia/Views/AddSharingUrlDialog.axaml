@@ -2,22 +2,41 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OneDriveFileDownloader.Avalonia.Views.AddSharingUrlDialog"
-        Title="Add Shared Link"
-        Width="500"
-        Height="180"
+        Title="Add Shared Folder from OneDrive"
+        Width="550"
+        Height="280"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
-  <Grid Margin="24" RowDefinitions="Auto, Auto, *, Auto">
-    <TextBlock Grid.Row="0" Text="Enter a OneDrive sharing URL:" Margin="0,0,0,8" />
+  <Grid Margin="24" RowDefinitions="Auto, Auto, Auto, *, Auto">
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
+      <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="24" VerticalAlignment="Center" Foreground="{DynamicResource SystemAccentColor}" />
+      <TextBlock Text="Add Shared Folder" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+    </StackPanel>
     
-    <TextBox Grid.Row="1" x:Name="UrlTextBox" Watermark="https://1drv.ms/... or https://onedrive.live.com/..." Margin="0,0,0,16" />
+    <TextBlock Grid.Row="1" Text="Paste the URL from your browser when viewing the shared folder:" Margin="0,0,0,8" />
     
-    <TextBlock Grid.Row="2" Text="Paste a sharing link from OneDrive to add shared folders that don't appear automatically." 
-               TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    <TextBox Grid.Row="2" x:Name="UrlTextBox" 
+             Watermark="https://onedrive.live.com/?cid=... or https://1drv.ms/..." 
+             Margin="0,0,0,12"
+             Height="40"
+             FontFamily="Consolas"
+             AcceptsReturn="False" />
     
-    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="OnCancel" />
-      <Button x:Name="AddButton" Content="Add" Width="80" Click="OnAdd" Classes="accent" />
+    <Border Grid.Row="3" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="How to get the URL:" FontWeight="SemiBold" FontSize="12" />
+        <StackPanel Spacing="4">
+          <TextBlock Text="1. Open OneDrive in your browser" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <TextBlock Text="2. Navigate to 'Shared' → 'Shared with me'" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <TextBlock Text="3. Click on the shared folder you want to add" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <TextBlock Text="4. Copy the full URL from your browser's address bar" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelButton" Content="Cancel" Width="90" Click="OnCancel" />
+      <Button x:Name="AddButton" Content="Add Folder" Width="100" Click="OnAdd" Classes="accent" />
     </StackPanel>
   </Grid>
 </Window>

@@ -41,51 +41,63 @@ class Program
         Console.WriteLine($"Scopes: {string.Join(", ", _scopes)}");
         Console.WriteLine();
 
-        // Create our own MSAL client for direct access to the token
+        // Create MSAL client WITH token cache to share with the main app
+        var cacheFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "OneDriveFileDownloader", 
+            "msal_cache.bin");
+        
         var pca = PublicClientApplicationBuilder
             .Create(settings.LastClientId)
             .WithAuthority(AzureCloudInstance.AzurePublic, "consumers")
             .WithRedirectUri("http://localhost")
             .Build();
 
+        // Bind token cache (same as OneDriveService uses)
+        pca.UserTokenCache.SetBeforeAccess(args =>
+        {
+            if (File.Exists(cacheFilePath))
+                args.TokenCache.DeserializeMsalV3(File.ReadAllBytes(cacheFilePath));
+        });
+        pca.UserTokenCache.SetAfterAccess(args =>
+        {
+            if (args.HasStateChanged)
+            {
+                var dir = Path.GetDirectoryName(cacheFilePath);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir!);
+                File.WriteAllBytes(cacheFilePath, args.TokenCache.SerializeMsalV3());
+            }
+        });
+
         AuthenticationResult authResult = null;
         var accounts = await pca.GetAccountsAsync();
         var firstAccount = accounts.FirstOrDefault();
 
-        try
+        // Try silent auth first (uses cached tokens)
+        if (firstAccount != null)
         {
-            if (firstAccount != null)
-            {
-                Console.WriteLine("Attempting silent authentication...");
-                authResult = await pca.AcquireTokenSilent(_scopes, firstAccount).ExecuteAsync();
-            }
-        }
-        catch (MsalUiRequiredException)
-        {
-            // Silent auth failed, need interactive
-        }
-
-        if (authResult == null)
-        {
-            Console.WriteLine("Starting interactive authentication...");
-            Console.WriteLine("(A browser window will open or you'll see a device code)");
-            Console.WriteLine();
-
             try
             {
-                authResult = await pca.AcquireTokenInteractive(_scopes)
-                    .WithUseEmbeddedWebView(false)
-                    .ExecuteAsync();
+                Console.WriteLine("Attempting silent authentication (using cached token)...");
+                authResult = await pca.AcquireTokenSilent(_scopes, firstAccount).ExecuteAsync();
+                Console.WriteLine("Silent auth succeeded!");
             }
-            catch
+            catch (MsalUiRequiredException)
             {
-                // Fallback to device code
-                authResult = await pca.AcquireTokenWithDeviceCode(_scopes, callback =>
-                {
-                    Console.WriteLine(callback.Message);
-                    return Task.CompletedTask;
-                }).ExecuteAsync();
+                Console.WriteLine("Cached token expired, need interactive login.");
             }
+        }
+
+        // If silent failed, do interactive (browser-based, no device code)
+        if (authResult == null)
+        {
+            Console.WriteLine("Starting interactive authentication (browser)...");
+            Console.WriteLine();
+
+            authResult = await pca.AcquireTokenInteractive(_scopes)
+                .WithUseEmbeddedWebView(false)
+                .WithPrompt(Prompt.SelectAccount)
+                .ExecuteAsync();
         }
 
         _accessToken = authResult.AccessToken;
@@ -140,13 +152,78 @@ class Program
         await TestEndpoint("11. BETA sharedWithMe with expand",
             "https://graph.microsoft.com/beta/me/drive/sharedWithMe?$expand=permissions");
 
-        // Test 12: Explore the other drives found in /me/drives
-        Console.WriteLine("--- 12. Exploring all accessible drives ---");
+        // Test 12: Try explicitly requesting shared items including all details
+        Console.WriteLine("--- 12. sharedWithMe with $select=* ---");
+        await DumpFullJson("https://graph.microsoft.com/v1.0/me/drive/sharedWithMe?$select=*");
+
+        // Test 13: Check if items appear in search
+        await TestEndpoint("13. Search for 'cats' across all drives",
+            "https://graph.microsoft.com/v1.0/me/drive/root/search(q='cats')");
+
+        // Test 13b: Search for 'more cats' specifically
+        await TestEndpoint("13b. Search for 'more cats'",
+            "https://graph.microsoft.com/v1.0/me/drive/root/search(q='more cats')");
+
+        // Test 13c: Dump full details of search for 'cats'
+        Console.WriteLine("--- 13c. FULL Search results for 'cats' ---");
+        await DumpFullJson("https://graph.microsoft.com/v1.0/me/drive/root/search(q='cats')?$top=10");
+
+        // Test 13d: Check root children for shortcuts (items with remoteItem)
+        Console.WriteLine("--- 13d. Looking for shortcuts in root ---");
+        await LookForRemoteItems("https://graph.microsoft.com/v1.0/me/drive/root/children?$top=100");
+
+        // Test 14: Try the bundles endpoint (sometimes shared items are bundled)
+        await TestEndpoint("14. Drive bundles",
+            "https://graph.microsoft.com/v1.0/me/drive/bundles");
+
+        // Test 15: Check items with shared facet in root
+        await TestEndpoint("15. Items with shared facet",
+            "https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=shared ne null");
+
+        // Test 16: Explore the other drives found in /me/drives
+        Console.WriteLine("--- 16. Exploring all accessible drives ---");
         await ExploreAllDrives();
+
+        // Test 17: Try DIRECT ACCESS to an item by drive ID and item ID
+        // This tests if we can access shared items when we know their exact location
+        Console.WriteLine("--- 17. Direct access test using known IDs from OneDrive web URL ---");
+        // From URL: photosData=/shared/5BA691C5EAD68D31!16679
+        // This appears to be the "more cats" folder
+        var testDriveId = "5BA691C5EAD68D31";
+        var testItemId = "5BA691C5EAD68D31!16679";
+        Console.WriteLine($"  Testing direct access to: driveId={testDriveId}, itemId={testItemId}");
+        await TestEndpoint("17a. Direct item access",
+            $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}");
+        await TestEndpoint("17b. Direct item children (if folder)",
+            $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}/children");
+        
+        // Test 18: Try the /shares endpoint with the sharing URL encoded as a token
+        Console.WriteLine("--- 18. Try /shares endpoint with base64 encoded URL ---");
+        var oneDriveUrl = "https://onedrive.live.com/?cid=5BA691C5EAD68D31!16679";
+        var base64Value = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(oneDriveUrl));
+        var shareToken = "u!" + base64Value.TrimEnd('=').Replace('/', '_').Replace('+', '-');
+        Console.WriteLine($"  Share token: {shareToken}");
+        await TestEndpoint("18a. Shares endpoint - driveItem",
+            $"https://graph.microsoft.com/v1.0/shares/{shareToken}/driveItem");
+        await TestEndpoint("18b. Shares endpoint - root",
+            $"https://graph.microsoft.com/v1.0/shares/{shareToken}/root");
+
+        // Test 19: IMPORTANT - Find ALL shortcuts in the entire drive (recursive search)
+        // These shortcuts might point to shared folders!
+        Console.WriteLine("--- 19. Search for ALL items with remoteItem (shortcuts) ---");
+        await FindAllShortcuts();
 
         Console.WriteLine();
         Console.WriteLine("=== END RAW API EXPLORATION ===");
         Console.WriteLine();
+
+        // Now run through the OneDriveService for comparison
+        var svc = new OneDriveService();
+        svc.DiagnosticLog += msg => Console.WriteLine($"  [DEBUG] {msg}");
+        svc.Configure(settings.LastClientId);
+        
+        // Authenticate through the service (should pick up cached token)
+        await svc.AuthenticateSilentAsync();
 
         // Allow user to test sharing URLs
         Console.WriteLine("=== TEST SHARING URL ACCESS ===");
@@ -187,14 +264,6 @@ class Program
             }
         }
         Console.WriteLine();
-
-        // Now run through the OneDriveService for comparison
-        var svc = new OneDriveService();
-        svc.DiagnosticLog += msg => Console.WriteLine($"  [DEBUG] {msg}");
-        svc.Configure(settings.LastClientId);
-        
-        // Authenticate through the service (should pick up cached token)
-        await svc.AuthenticateSilentAsync();
 
         // List shared items using the service
         Console.WriteLine("Listing items shared with you (via OneDriveService)...");
@@ -347,6 +416,109 @@ class Program
         }
     }
 
+    static async Task FindAllShortcuts()
+    {
+        // Use search to find ALL items, then filter for ones with remoteItem
+        // This might reveal shortcuts to shared folders that aren't in the root
+        Console.WriteLine("  Searching entire drive for items that might be shortcuts...");
+        
+        var shortcuts = new List<(string name, string remoteDriveId, string remoteItemId, string path)>();
+        
+        try
+        {
+            // Search for common shared folder indicators
+            // Can't directly search for remoteItem, so we search broadly and filter
+            var searchTerms = new[] { "*" }; // Wildcard search doesn't work, but let's try delta
+            
+            // Try delta to get ALL items, looking for remoteItem
+            Console.WriteLine("  Using delta endpoint to enumerate all items...");
+            var deltaUrl = "https://graph.microsoft.com/v1.0/me/drive/root/delta?$select=id,name,remoteItem,parentReference,folder&$top=1000";
+            var pageCount = 0;
+            var totalItems = 0;
+            
+            while (!string.IsNullOrEmpty(deltaUrl) && pageCount < 10) // Limit pages to avoid too much data
+            {
+                pageCount++;
+                using var req = new HttpRequestMessage(HttpMethod.Get, deltaUrl);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                
+                var res = await _http.SendAsync(req);
+                if (!res.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"  Delta failed: {res.StatusCode}");
+                    break;
+                }
+                
+                var raw = await res.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(raw);
+                
+                if (doc.RootElement.TryGetProperty("value", out var arr))
+                {
+                    foreach (var el in arr.EnumerateArray())
+                    {
+                        totalItems++;
+                        
+                        // Check if this item has a remoteItem (meaning it's a shortcut)
+                        if (el.TryGetProperty("remoteItem", out var remote))
+                        {
+                            var name = el.TryGetProperty("name", out var n) ? n.GetString() : "(unknown)";
+                            var remoteDriveId = "";
+                            var remoteItemId = remote.TryGetProperty("id", out var rid) ? rid.GetString() : "";
+                            var path = "";
+                            
+                            if (remote.TryGetProperty("parentReference", out var pr))
+                            {
+                                remoteDriveId = pr.TryGetProperty("driveId", out var did) ? did.GetString() : "";
+                            }
+                            
+                            if (el.TryGetProperty("parentReference", out var localPr))
+                            {
+                                path = localPr.TryGetProperty("path", out var p) ? p.GetString() : "";
+                            }
+                            
+                            var isFolder = remote.TryGetProperty("folder", out _);
+                            
+                            shortcuts.Add((name, remoteDriveId, remoteItemId, path));
+                            Console.WriteLine($"  ** SHORTCUT: '{name}' {(isFolder ? "[FOLDER]" : "[FILE]")}");
+                            Console.WriteLine($"      Location: {path}");
+                            Console.WriteLine($"      Points to: driveId={remoteDriveId}, itemId={remoteItemId}");
+                        }
+                    }
+                }
+                
+                // Check for next page
+                if (doc.RootElement.TryGetProperty("@odata.nextLink", out var nextLink))
+                {
+                    deltaUrl = nextLink.GetString();
+                    Console.WriteLine($"  (Page {pageCount}, scanned {totalItems} items so far, found {shortcuts.Count} shortcuts...)");
+                }
+                else
+                {
+                    deltaUrl = null;
+                }
+            }
+            
+            Console.WriteLine($"\n  === SHORTCUT SUMMARY ===");
+            Console.WriteLine($"  Total items scanned: {totalItems}");
+            Console.WriteLine($"  Shortcuts found: {shortcuts.Count}");
+            
+            if (shortcuts.Count > 0)
+            {
+                Console.WriteLine("\n  These shortcuts point to OTHER DRIVES and could be shared content:");
+                foreach (var (name, driveId, itemId, path) in shortcuts)
+                {
+                    Console.WriteLine($"    - {name}");
+                    Console.WriteLine($"        Path: {path}");
+                    Console.WriteLine($"        Remote: drives/{driveId}/items/{itemId}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  Error: {ex.Message}");
+        }
+    }
+
     static async Task DumpFullJson(string url)
     {
         try
@@ -373,6 +545,64 @@ class Program
             else
             {
                 Console.WriteLine(pretty);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        Console.WriteLine();
+    }
+
+    static async Task LookForRemoteItems(string url)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            
+            var res = await _http.SendAsync(req);
+            var raw = await res.Content.ReadAsStringAsync();
+            
+            if (!res.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Error: {res.StatusCode}");
+                return;
+            }
+            
+            using var doc = JsonDocument.Parse(raw);
+            if (!doc.RootElement.TryGetProperty("value", out var arr)) return;
+            
+            var shortcuts = new List<(string name, string driveId, string itemId)>();
+            
+            foreach (var item in arr.EnumerateArray())
+            {
+                var name = item.TryGetProperty("name", out var n) ? n.GetString() : "(unnamed)";
+                
+                // Check for remoteItem property - this indicates a shortcut to another drive
+                if (item.TryGetProperty("remoteItem", out var remote))
+                {
+                    var remoteDriveId = "";
+                    var remoteItemId = remote.TryGetProperty("id", out var rid) ? rid.GetString() : "";
+                    
+                    if (remote.TryGetProperty("parentReference", out var pr))
+                    {
+                        remoteDriveId = pr.TryGetProperty("driveId", out var did) ? did.GetString() : "";
+                    }
+                    
+                    shortcuts.Add((name, remoteDriveId, remoteItemId));
+                    Console.WriteLine($"  SHORTCUT FOUND: '{name}'");
+                    Console.WriteLine($"    -> driveId: {remoteDriveId}");
+                    Console.WriteLine($"    -> itemId:  {remoteItemId}");
+                }
+            }
+            
+            Console.WriteLine($"\nTotal shortcuts found: {shortcuts.Count}");
+            
+            // If we found shortcuts, we can use these to access shared folders!
+            if (shortcuts.Count > 0)
+            {
+                Console.WriteLine("\n*** THESE SHORTCUTS CAN BE USED TO ACCESS SHARED FOLDERS! ***");
             }
         }
         catch (Exception ex)

@@ -5,16 +5,40 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using Microsoft.Identity.Client;
+using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Abstractions.Authentication;
 using OneDriveFileDownloader.Core.Interfaces;
 using OneDriveFileDownloader.Core.Models;
+using Prompt = Microsoft.Identity.Client.Prompt;
 
 namespace OneDriveFileDownloader.Core.Services
 {
+	/// <summary>
+	/// Custom authentication provider that uses MSAL tokens for Microsoft Graph SDK
+	/// </summary>
+	internal class MsalAuthenticationProvider : IAuthenticationProvider
+	{
+		private readonly Func<Task<string>> _tokenProvider;
+
+		public MsalAuthenticationProvider(Func<Task<string>> tokenProvider)
+		{
+			_tokenProvider = tokenProvider;
+		}
+
+		public async Task AuthenticateRequestAsync(RequestInformation request, Dictionary<string, object> additionalAuthenticationContext = null, CancellationToken cancellationToken = default)
+		{
+			var token = await _tokenProvider();
+			request.Headers.Add("Authorization", $"Bearer {token}");
+		}
+	}
+
 	public class OneDriveService : IOneDriveService
 	{
 		private string _clientId;
 		private IPublicClientApplication _pca;
+		private GraphServiceClient _graphClient;
 		// Files.Read.All is required to access shared items - Files.Read alone won't return all shared content
 		private readonly string[] _scopes = new[] { "Files.Read.All", "User.Read" };
 		private readonly HttpClient _http = new HttpClient();
@@ -28,11 +52,17 @@ namespace OneDriveFileDownloader.Core.Services
 			_clientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
 			_pca = PublicClientApplicationBuilder
 				.Create(_clientId)
+				// Use "consumers" authority for personal Microsoft accounts
+				.WithAuthority(AzureCloudInstance.AzurePublic, "consumers")
 				// Explicit redirect URI: ensure this is registered in your app registration (http://localhost)
 				.WithRedirectUri("http://localhost")
 				.Build();
 
 			BindCache(_pca.UserTokenCache);
+			
+			// Create GraphServiceClient with our MSAL auth provider
+			var authProvider = new MsalAuthenticationProvider(EnsureAccessTokenAsync);
+			_graphClient = new GraphServiceClient(authProvider);
 		}
 
 		private void BindCache(ITokenCache tokenCache)
@@ -68,6 +98,26 @@ namespace OneDriveFileDownloader.Core.Services
 
 			Log($"Requesting authentication with scopes: {string.Join(", ", _scopes)}");
 
+			// First try silent auth - if we have a cached token, use it
+			var accounts = await _pca.GetAccountsAsync();
+			var firstAccount = accounts.FirstOrDefault();
+			
+			if (firstAccount != null)
+			{
+				try
+				{
+					Log("Attempting silent authentication with cached token...");
+					var silentResult = await _pca.AcquireTokenSilent(_scopes, firstAccount).ExecuteAsync();
+					Log($"Silent auth succeeded. Granted scopes: {string.Join(", ", silentResult.Scopes)}");
+					return silentResult.Account.Username ?? silentResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
+				}
+				catch (MsalUiRequiredException)
+				{
+					Log("Cached token expired, proceeding to interactive auth.");
+				}
+			}
+
+			// Interactive auth (browser-based)
 			try
 			{
 				var builder = _pca.AcquireTokenInteractive(_scopes)
@@ -81,36 +131,12 @@ namespace OneDriveFileDownloader.Core.Services
 				var result = await builder.ExecuteAsync();
 				Log($"Interactive auth succeeded. Granted scopes: {string.Join(", ", result.Scopes)}");
 
-				// Interactive auth completed; token cache is seeded.
-
 				return result.Account.Username ?? result.Account.HomeAccountId?.Identifier ?? "(unknown)";
 			}
-			catch (Microsoft.Identity.Client.MsalServiceException se) when ((se.ErrorCode != null && se.ErrorCode.IndexOf("invalid_request", StringComparison.OrdinalIgnoreCase) >= 0) || (se.Message != null && se.Message.IndexOf("redirect", StringComparison.OrdinalIgnoreCase) >= 0))
+			catch (MsalClientException ex) when (ex.ErrorCode == "authentication_canceled")
 			{
-				if (deviceCodeCallback != null) deviceCodeCallback("Interactive sign-in failed (redirect URI mismatch). Falling back to device code flow...");
-				else Console.WriteLine("Interactive sign-in failed due to redirect URI mismatch. Ensure your app registration includes 'http://localhost' (or 'https://login.microsoftonline.com/common/oauth2/nativeclient') as a redirect URI for your client id. Falling back to device code flow.");
-
-				var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
-				{
-					if (deviceCodeCallback != null) deviceCodeCallback(callback.Message);
-					else Console.WriteLine(callback.Message);
-					return Task.CompletedTask;
-				}).ExecuteAsync();
-
-				return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
-			}
-			catch (MsalException ex)
-			{
-				if (deviceCodeCallback != null) deviceCodeCallback($"Interactive sign-in failed: {ex.Message}. Falling back to device code flow...");
-				// other MSAL exception - fallback to device code
-				var deviceResult = await _pca.AcquireTokenWithDeviceCode(_scopes, callback =>
-				{
-					if (deviceCodeCallback != null) deviceCodeCallback(callback.Message);
-					else Console.WriteLine(callback.Message);
-					return Task.CompletedTask;
-				}).ExecuteAsync();
-
-				return deviceResult.Account.Username ?? deviceResult.Account.HomeAccountId?.Identifier ?? "(unknown)";
+				Log("User canceled authentication.");
+				throw; // Let caller handle cancellation
 			}
 		}
 
@@ -164,180 +190,112 @@ namespace OneDriveFileDownloader.Core.Services
 		public async Task<IList<SharedItemInfo>> ListSharedWithMeAsync()
 		{
 			var items = new List<SharedItemInfo>();
-			var token = await EnsureAccessTokenAsync();
-			if (string.IsNullOrEmpty(token)) 
-				throw new InvalidOperationException("Unable to acquire access token to list shared items.");
+			
+			if (_graphClient == null)
+				throw new InvalidOperationException("Call Configure(clientId) first.");
 
-			// Use the sharedWithMe endpoint - this returns items shared WITH the current user BY other users
-			// Note: This API is deprecated but still works until November 2026
-			// IMPORTANT: allowexternal=true is required to see items shared from OTHER Microsoft accounts/tenants!
-			var requestUrl = "https://graph.microsoft.com/v1.0/me/drive/sharedWithMe?allowexternal=true";
-			int pageCount = 0;
-			int totalItemsFromApi = 0;
-			int itemsWithRemoteItem = 0;
-			int itemsSuccessfullyParsed = 0;
+			Log($"Starting sharedWithMe API call using Microsoft Graph SDK...");
 
-			Log($"Starting sharedWithMe API call...");
-
-			while (!string.IsNullOrEmpty(requestUrl))
+			try
 			{
-				pageCount++;
-				using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, requestUrl);
-				req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-				
-				var res = await _http.SendAsync(req);
-				var raw = await res.Content.ReadAsStringAsync();
-				
-				if (!res.IsSuccessStatusCode)
+				// First, get the user's drive ID
+				var drive = await _graphClient.Me.Drive.GetAsync();
+				if (drive == null || string.IsNullOrEmpty(drive.Id))
 				{
-					Log($"API Error: {res.StatusCode} - {raw}");
-					throw new HttpRequestException($"Graph API returned {res.StatusCode}: {raw}");
+					Log("Could not retrieve user's drive");
+					return items;
 				}
-
-				using var doc = System.Text.Json.JsonDocument.Parse(raw);
 				
-				if (doc.RootElement.TryGetProperty("value", out var arr))
-				{
-					var itemsInPage = arr.GetArrayLength();
-					totalItemsFromApi += itemsInPage;
-					Log($"Page {pageCount}: Received {itemsInPage} items from API");
+				Log($"User's drive ID: {drive.Id}");
 
-					foreach (var el in arr.EnumerateArray())
+				// Use the Microsoft Graph SDK - sharedWithMe is accessed via Drives[driveId].SharedWithMe
+				var sharedResult = await _graphClient.Drives[drive.Id].SharedWithMe
+					.GetAsSharedWithMeGetResponseAsync(config =>
 					{
-						// Get item name for logging
-						var itemName = el.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : "(unknown)";
-						
-						// Check if this item has a remoteItem property
-						// According to MS docs, shared items should always have remoteItem
-						if (!el.TryGetProperty("remoteItem", out var remote))
-						{
-							// Items without remoteItem might be items the user shared WITH others (not shared TO user)
-							// or might indicate a permissions issue
-							Log($"  SKIP '{itemName}': No remoteItem property - may be user's own shared item or permissions issue");
-							continue;
-						}
-						
-						itemsWithRemoteItem++;
+						config.QueryParameters.Select = new[] { "id", "name", "size", "folder", "file", "remoteItem", "createdBy", "parentReference" };
+					});
 
-						// Extract drive ID - try multiple locations
-						string driveId = null;
-						
-						// First try remoteItem.parentReference.driveId (most common for shared items)
-						if (remote.TryGetProperty("parentReference", out var parentRef))
-						{
-							if (parentRef.TryGetProperty("driveId", out var parentDriveId) && 
-							    parentDriveId.ValueKind == System.Text.Json.JsonValueKind.String)
-							{
-								driveId = parentDriveId.GetString();
-							}
-						}
-						
-						// Fallback: try top-level parentReference if remote doesn't have it
-						if (string.IsNullOrEmpty(driveId) && el.TryGetProperty("parentReference", out var topParentRef))
-						{
-							if (topParentRef.TryGetProperty("driveId", out var topDriveId) && 
-							    topDriveId.ValueKind == System.Text.Json.JsonValueKind.String)
-							{
-								driveId = topDriveId.GetString();
-							}
-						}
-						
-						if (string.IsNullOrEmpty(driveId))
-						{
-							Log($"  SKIP '{itemName}': Could not extract driveId");
-							continue;
-						}
+				if (sharedResult?.Value == null)
+				{
+					Log("No items returned from sharedWithMe");
+					return items;
+				}
 
-						// Get the remote item ID
-						if (!remote.TryGetProperty("id", out var remoteIdProp) || 
-						    string.IsNullOrEmpty(remoteIdProp.GetString()))
-						{
-							Log($"  SKIP '{itemName}': No remote item ID");
-							continue;
-						}
-						
-						var remoteId = remoteIdProp.GetString();
-						var sharedId = el.TryGetProperty("id", out var sharedIdProp) ? sharedIdProp.GetString() : null;
+				Log($"Received {sharedResult.Value.Count} items from API");
 
-						// Get name from remoteItem or fall back to top-level name
-						var name = remote.TryGetProperty("name", out var remoteName) && 
-						           remoteName.ValueKind == System.Text.Json.JsonValueKind.String
-							? remoteName.GetString()
-							: itemName;
-
-						// Determine if folder
-						bool isFolder = remote.TryGetProperty("folder", out _);
-
-						// Get size
-						long? size = remote.TryGetProperty("size", out var sizeProp) ? sizeProp.GetInt64() : (long?)null;
-
-						// Get SHA1 hash if available
-						var sha1 = string.Empty;
-						if (remote.TryGetProperty("file", out var file) && 
-						    file.TryGetProperty("hashes", out var hashes) && 
-						    hashes.TryGetProperty("sha1Hash", out var hash))
-						{
-							sha1 = hash.GetString() ?? string.Empty;
-						}
-
-						// Try to get owner/sharer info for logging
-						var ownerInfo = "(unknown owner)";
-						if (el.TryGetProperty("createdBy", out var createdBy) && 
-						    createdBy.TryGetProperty("user", out var creatorUser))
-						{
-							var displayName = creatorUser.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
-							var email = creatorUser.TryGetProperty("email", out var em) ? em.GetString() : null;
-							ownerInfo = displayName ?? email ?? "(unknown)";
-						}
-						else if (remote.TryGetProperty("createdBy", out var remoteCreatedBy) && 
-						         remoteCreatedBy.TryGetProperty("user", out var remoteCreator))
-						{
-							var displayName = remoteCreator.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
-							ownerInfo = displayName ?? "(unknown)";
-						}
-
-						itemsSuccessfullyParsed++;
-						Log($"  FOUND '{name}' (driveId={driveId}, itemId={remoteId}, isFolder={isFolder}, owner={ownerInfo})");
-
-						items.Add(new SharedItemInfo
-						{
-							Id = sharedId ?? remoteId,
-							Name = name ?? string.Empty,
-							RemoteDriveId = driveId,
-							RemoteItemId = remoteId,
-							IsFolder = isFolder,
-							Size = size,
-							Sha1Hash = sha1
-						});
+				foreach (var item in sharedResult.Value)
+				{
+					var itemName = item.Name ?? "(unknown)";
+					
+					// Check for remoteItem - shared items should have this
+					if (item.RemoteItem == null)
+					{
+						Log($"  SKIP '{itemName}': No remoteItem property");
+						continue;
 					}
-				}
-				else
-				{
-					Log($"Page {pageCount}: No 'value' array in response");
+
+					var remote = item.RemoteItem;
+					
+					// Extract drive ID from remoteItem.parentReference
+					var driveId = remote.ParentReference?.DriveId;
+					if (string.IsNullOrEmpty(driveId))
+					{
+						// Fallback to top-level parentReference
+						driveId = item.ParentReference?.DriveId;
+					}
+
+					if (string.IsNullOrEmpty(driveId))
+					{
+						Log($"  SKIP '{itemName}': Could not extract driveId");
+						continue;
+					}
+
+					var remoteId = remote.Id;
+					if (string.IsNullOrEmpty(remoteId))
+					{
+						Log($"  SKIP '{itemName}': No remote item ID");
+						continue;
+					}
+
+					var name = remote.Name ?? itemName;
+					var isFolder = remote.Folder != null;
+					var size = remote.Size;
+					var sha1 = remote.File?.Hashes?.Sha1Hash ?? string.Empty;
+					var ownerInfo = item.CreatedBy?.User?.DisplayName ?? 
+					               remote.CreatedBy?.User?.DisplayName ?? 
+					               "(unknown owner)";
+
+					Log($"  FOUND '{name}' (driveId={driveId}, itemId={remoteId}, isFolder={isFolder}, owner={ownerInfo})");
+
+					items.Add(new SharedItemInfo
+					{
+						Id = item.Id ?? remoteId,
+						Name = name,
+						RemoteDriveId = driveId,
+						RemoteItemId = remoteId,
+						IsFolder = isFolder,
+						Size = size,
+						Sha1Hash = sha1
+					});
 				}
 
-				// Check for pagination
-				if (doc.RootElement.TryGetProperty("@odata.nextLink", out var nextLink) && 
-				    nextLink.ValueKind == System.Text.Json.JsonValueKind.String)
-				{
-					requestUrl = nextLink.GetString();
-					Log($"Following pagination to next page...");
-				}
-				else
-				{
-					requestUrl = null;
-				}
+				Log($"Summary: {sharedResult.Value.Count} total items from API, {items.Count} successfully parsed");
 			}
-
-			Log($"Summary: {pageCount} pages, {totalItemsFromApi} total items from API, " +
-			    $"{itemsWithRemoteItem} with remoteItem, {itemsSuccessfullyParsed} successfully parsed");
+			catch (Exception ex)
+			{
+				Log($"Error calling sharedWithMe: {ex.Message}");
+				throw;
+			}
 
 			return items;
 		}
 
 		/// <summary>
-		/// Access a shared item using its OneDrive sharing URL.
-		/// This uses the Microsoft Graph Shares API to decode the sharing URL and access the item.
+		/// Access a shared item using its OneDrive sharing URL or web URL.
+		/// Supports multiple URL formats:
+		/// 1. Standard sharing links (1drv.ms, onedrive.live.com/redir)
+		/// 2. OneDrive web URLs with photosData parameter containing /shared/DRIVEID!ITEMID
+		/// 3. Direct drive/item reference URLs
 		/// </summary>
 		public async Task<SharedItemInfo> GetSharedItemFromUrlAsync(string sharingUrl)
 		{
@@ -348,6 +306,131 @@ namespace OneDriveFileDownloader.Core.Services
 			if (string.IsNullOrEmpty(token))
 				throw new InvalidOperationException("Unable to acquire access token.");
 
+			Log($"Parsing URL: {sharingUrl}");
+
+			// Try to extract drive ID and item ID directly from the URL
+			// Pattern 1: photosData=/shared/DRIVEID!ITEMID (URL encoded as %2Fshared%2F)
+			// Pattern 2: cid=DRIVEID (older format)
+			// Pattern 3: id=DRIVEID!ITEMID
+			var (driveId, itemId) = TryParseOneDriveWebUrl(sharingUrl);
+			
+			if (!string.IsNullOrEmpty(driveId) && !string.IsNullOrEmpty(itemId))
+			{
+				Log($"  Extracted direct IDs: driveId={driveId}, itemId={itemId}");
+				return await GetItemByDirectAccess(driveId, itemId, token);
+			}
+
+			// Fall back to the Shares API for standard sharing links
+			return await GetItemViaSharingToken(sharingUrl, token);
+		}
+
+		/// <summary>
+		/// Try to parse OneDrive web URLs to extract drive ID and item ID directly.
+		/// </summary>
+		private (string driveId, string itemId) TryParseOneDriveWebUrl(string url)
+		{
+			try
+			{
+				// URL decode first
+				var decoded = Uri.UnescapeDataString(url);
+				
+				// Pattern: photosData=/shared/DRIVEID!ITEMID or photosData=%2Fshared%2FDRIVEID!ITEMID
+				var photosDataMatch = System.Text.RegularExpressions.Regex.Match(
+					decoded, 
+					@"/shared/([A-Fa-f0-9]+)!(\d+)",
+					System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				
+				if (photosDataMatch.Success)
+				{
+					return (photosDataMatch.Groups[1].Value, $"{photosDataMatch.Groups[1].Value}!{photosDataMatch.Groups[2].Value}");
+				}
+
+				// Pattern: id=DRIVEID!ITEMID in query string
+				var idMatch = System.Text.RegularExpressions.Regex.Match(
+					decoded,
+					@"[?&]id=([A-Fa-f0-9]+)!(\d+)",
+					System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				
+				if (idMatch.Success)
+				{
+					return (idMatch.Groups[1].Value, $"{idMatch.Groups[1].Value}!{idMatch.Groups[2].Value}");
+				}
+
+				// Pattern: Direct format like DRIVEID!ITEMID (if user pastes just the ID)
+				var directMatch = System.Text.RegularExpressions.Regex.Match(
+					url.Trim(),
+					@"^([A-Fa-f0-9]+)!(\d+)$",
+					System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				
+				if (directMatch.Success)
+				{
+					return (directMatch.Groups[1].Value, $"{directMatch.Groups[1].Value}!{directMatch.Groups[2].Value}");
+				}
+			}
+			catch (Exception ex)
+			{
+				Log($"  Error parsing URL: {ex.Message}");
+			}
+			
+			return (null, null);
+		}
+
+		/// <summary>
+		/// Access an item directly using drive ID and item ID.
+		/// </summary>
+		private async Task<SharedItemInfo> GetItemByDirectAccess(string driveId, string itemId, string token)
+		{
+			var requestUrl = $"https://graph.microsoft.com/v1.0/drives/{driveId}/items/{itemId}";
+			Log($"  Direct access: {requestUrl}");
+
+			using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, requestUrl);
+			req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+			var res = await _http.SendAsync(req);
+			var raw = await res.Content.ReadAsStringAsync();
+
+			if (!res.IsSuccessStatusCode)
+			{
+				Log($"  Direct access error: {res.StatusCode} - {raw}");
+				return null;
+			}
+
+			using var doc = System.Text.Json.JsonDocument.Parse(raw);
+			var el = doc.RootElement;
+
+			var id = el.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+			var name = el.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+			var isFolder = el.TryGetProperty("folder", out _);
+			long? size = el.TryGetProperty("size", out var sizeProp) ? sizeProp.GetInt64() : (long?)null;
+
+			// Get SHA1 hash if available
+			var sha1 = string.Empty;
+			if (el.TryGetProperty("file", out var file) && 
+			    file.TryGetProperty("hashes", out var hashes) && 
+			    hashes.TryGetProperty("sha1Hash", out var hash))
+			{
+				sha1 = hash.GetString() ?? string.Empty;
+			}
+
+			Log($"  SUCCESS: '{name}' (driveId={driveId}, itemId={id}, isFolder={isFolder})");
+
+			return new SharedItemInfo
+			{
+				Id = id,
+				Name = name ?? string.Empty,
+				RemoteDriveId = driveId,
+				RemoteItemId = id,
+				IsFolder = isFolder,
+				Size = size,
+				Sha1Hash = sha1
+			};
+		}
+
+		/// <summary>
+		/// Access an item via the Shares API using an encoded sharing token.
+		/// </summary>
+		private async Task<SharedItemInfo> GetItemViaSharingToken(string sharingUrl, string token)
+		{
 			// Encode the sharing URL according to Microsoft's spec:
 			// 1. Base64 encode the URL
 			// 2. Convert to unpadded base64url format (remove =, replace / with _, replace + with -)
@@ -355,9 +438,7 @@ namespace OneDriveFileDownloader.Core.Services
 			var base64Value = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sharingUrl));
 			var encodedUrl = "u!" + base64Value.TrimEnd('=').Replace('/', '_').Replace('+', '-');
 
-			Log($"Accessing shared item via URL...");
-			Log($"  Original URL: {sharingUrl}");
-			Log($"  Encoded token: {encodedUrl.Substring(0, Math.Min(50, encodedUrl.Length))}...");
+			Log($"  Using Shares API with encoded token...");
 
 			// Call the Shares API to get the driveItem
 			// Using the "Prefer: redeemSharingLink" header grants durable access
