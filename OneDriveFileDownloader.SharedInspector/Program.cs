@@ -187,26 +187,46 @@ class Program
         // Test 17: Try DIRECT ACCESS to an item by drive ID and item ID
         // This tests if we can access shared items when we know their exact location
         Console.WriteLine("--- 17. Direct access test using known IDs from OneDrive web URL ---");
-        // From URL: photosData=/shared/5BA691C5EAD68D31!16679
-        // This appears to be the "more cats" folder
-        var testDriveId = "5BA691C5EAD68D31";
-        var testItemId = "5BA691C5EAD68D31!16679";
-        Console.WriteLine($"  Testing direct access to: driveId={testDriveId}, itemId={testItemId}");
-        await TestEndpoint("17a. Direct item access",
-            $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}");
-        await TestEndpoint("17b. Direct item children (if folder)",
-            $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}/children");
+        Console.WriteLine("  To test direct access, provide a OneDrive URL with embedded IDs.");
+        Console.WriteLine("  Example format: photosData=/shared/DRIVEID!ITEMID");
+        Console.Write("  Enter driveId (or press Enter to skip): ");
+        var testDriveId = Console.ReadLine()?.Trim();
+        if (!string.IsNullOrEmpty(testDriveId))
+        {
+            Console.Write("  Enter itemId: ");
+            var testItemId = Console.ReadLine()?.Trim();
+            if (!string.IsNullOrEmpty(testItemId))
+            {
+                Console.WriteLine($"  Testing direct access to: driveId={testDriveId}, itemId={testItemId}");
+                await TestEndpoint("17a. Direct item access",
+                    $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}");
+                await TestEndpoint("17b. Direct item children (if folder)",
+                    $"https://graph.microsoft.com/v1.0/drives/{testDriveId}/items/{testItemId}/children");
+            }
+        }
+        else
+        {
+            Console.WriteLine("  Skipped direct access test.");
+        }
         
         // Test 18: Try the /shares endpoint with the sharing URL encoded as a token
         Console.WriteLine("--- 18. Try /shares endpoint with base64 encoded URL ---");
-        var oneDriveUrl = "https://onedrive.live.com/?cid=5BA691C5EAD68D31!16679";
-        var base64Value = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(oneDriveUrl));
-        var shareToken = "u!" + base64Value.TrimEnd('=').Replace('/', '_').Replace('+', '-');
-        Console.WriteLine($"  Share token: {shareToken}");
-        await TestEndpoint("18a. Shares endpoint - driveItem",
-            $"https://graph.microsoft.com/v1.0/shares/{shareToken}/driveItem");
-        await TestEndpoint("18b. Shares endpoint - root",
-            $"https://graph.microsoft.com/v1.0/shares/{shareToken}/root");
+        Console.Write("  Enter a OneDrive URL to test (or press Enter to skip): ");
+        var oneDriveUrl = Console.ReadLine()?.Trim();
+        if (!string.IsNullOrEmpty(oneDriveUrl))
+        {
+            var base64Value = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(oneDriveUrl));
+            var shareToken = "u!" + base64Value.TrimEnd('=').Replace('/', '_').Replace('+', '-');
+            Console.WriteLine($"  Share token: {shareToken}");
+            await TestEndpoint("18a. Shares endpoint - driveItem",
+                $"https://graph.microsoft.com/v1.0/shares/{shareToken}/driveItem");
+            await TestEndpoint("18b. Shares endpoint - root",
+                $"https://graph.microsoft.com/v1.0/shares/{shareToken}/root");
+        }
+        else
+        {
+            Console.WriteLine("  Skipped /shares endpoint test.");
+        }
 
         // Test 19: IMPORTANT - Find ALL shortcuts in the entire drive (recursive search)
         // These shortcuts might point to shared folders!
