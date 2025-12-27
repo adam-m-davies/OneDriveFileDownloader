@@ -4,15 +4,64 @@
         xmlns:views="clr-namespace:OneDriveFileDownloader.Avalonia.Views"
         x:Class="OneDriveFileDownloader.Avalonia.MainWindow"
         Title="OneDrive File Downloader" Width="800" Height="600">
-  <DockPanel>
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8">
-      <Image Width="32" Height="32" Source="{Binding UserThumbnail, Converter={StaticResource BytesToBitmapConverter}}" Margin="0,0,8,0" />
-      <TextBlock Text="{Binding UserDisplayName}" VerticalAlignment="Center" Margin="0,0,16,0" />
-      <Button Name="MinimalBtn" Content="Minimal" Margin="4" />
-      <Button Name="DashboardBtn" Content="Dashboard" Margin="4" />
-      <Button Name="ExplorerBtn" Content="Explorer" Margin="4" />
-      <Button Name="SettingsBtn" Content="Settings" Margin="8,0,0,0" />
-    </StackPanel>
-    <ContentControl Name="MainContent" />
-  </DockPanel>
+  <Grid RowDefinitions="Auto, *, Auto">
+    <!-- Header -->
+    <Border Grid.Row="0" Padding="12" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+      <Grid ColumnDefinitions="Auto, *, Auto">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Border Width="36" Height="36" CornerRadius="18" ClipToBounds="True">
+            <Image Source="{Binding UserThumbnail, Converter={StaticResource BytesToBitmapConverter}}" Stretch="UniformToFill" />
+          </Border>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="{Binding UserDisplayName}" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock Text="OneDrive Downloader" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button x:Name="SignInBtn" Content="Sign in" Classes="accent" Command="{Binding SignInCommand}" IsVisible="{Binding IsAuthenticated, Converter={StaticResource InverseBoolConverter}}" />
+          <Button x:Name="SettingsBtn" Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Settings" Command="{Binding OpenSettingsCommand}" Background="Transparent" BorderThickness="0" FontSize="18" />
+          <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Sign Out" Command="{Binding SignOutCommand}" IsVisible="{Binding IsAuthenticated}" Background="Transparent" BorderThickness="0" FontSize="18" Foreground="#E81123" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Main Content Area with Sidebar -->
+    <SplitView Grid.Row="1" IsPaneOpen="True" DisplayMode="CompactInline" OpenPaneLength="200" CompactPaneLength="48">
+      <SplitView.Pane>
+        <StackPanel Spacing="4" Margin="4,12">
+          <Button x:Name="MinimalBtn" Command="{Binding NavigateCommand}" CommandParameter="Minimal" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
+              <TextBlock Text="Minimal" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="DashboardBtn" Command="{Binding NavigateCommand}" CommandParameter="Dashboard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
+              <TextBlock Text="Dashboard" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="ExplorerBtn" Command="{Binding NavigateCommand}" CommandParameter="Explorer" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="Transparent" BorderThickness="0">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Width="24" TextAlignment="Center" />
+              <TextBlock Text="Explorer" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </SplitView.Pane>
+
+      <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}" CornerRadius="8,0,0,0" Margin="0,0,0,0">
+        <ContentControl x:Name="MainContent" Padding="20" />
+      </Border>
+    </SplitView>
+
+    <!-- Footer / Status Bar -->
+    <Border Grid.Row="2" Padding="12,4" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlElevationBorderBrush}">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" FontSize="12" />
+        <TextBlock Text="{Binding StatusText}" x:Name="StatusTextBlock" FontSize="12" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+  </Grid>
 </Window>

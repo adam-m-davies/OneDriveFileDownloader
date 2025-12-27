@@ -2,18 +2,50 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OneDriveFileDownloader.Avalonia.SettingsWindow"
-        Width="500" Height="200" Title="Settings">
-  <StackPanel Margin="12" Spacing="8">
-    <TextBlock Text="Client ID" />
-    <TextBox Name="ClientIdBox" />
-    <TextBlock Text="Local downloads folder" />
-    <StackPanel Orientation="Horizontal" Spacing="8">
-      <TextBox Name="FolderBox" Width="350" />
-      <Button Name="BrowseBtn" Content="Browse" />
+        Width="500" Height="600" Title="Settings" WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="*, Auto" Margin="20">
+    <ScrollViewer Grid.Row="0">
+      <StackPanel Spacing="20">
+        <TextBlock Text="Settings" FontSize="28" FontWeight="SemiBold" />
+
+        <!-- Authentication Section -->
+        <StackPanel Spacing="8">
+          <TextBlock Text="Authentication" FontWeight="SemiBold" FontSize="16" />
+          <TextBlock Text="Client ID" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <Grid ColumnDefinitions="*, Auto">
+            <TextBox x:Name="ClientIdBox" Watermark="Enter Azure App Client ID" />
+            <Button Grid.Column="1" x:Name="ClearClientBtn" Content="" FontFamily="Segoe MDL2 Assets" Margin="4,0,0,0" ToolTip.Tip="Clear" />
+          </Grid>
+        </StackPanel>
+
+        <!-- Download Section -->
+        <StackPanel Spacing="8">
+          <TextBlock Text="Downloads" FontWeight="SemiBold" FontSize="16" />
+          <TextBlock Text="Download Folder" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <Grid ColumnDefinitions="*, Auto">
+            <TextBox x:Name="FolderBox" Watermark="Select local folder" IsReadOnly="True" />
+            <Button Grid.Column="1" x:Name="BrowseBtn" Content="" FontFamily="Segoe MDL2 Assets" Margin="4,0,0,0" ToolTip.Tip="Browse" />
+          </Grid>
+          <CheckBox x:Name="ScanOnSelectionBox" Content="Auto-scan folder on selection" />
+        </StackPanel>
+
+        <!-- Appearance Section -->
+        <StackPanel Spacing="8">
+          <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="16" />
+          <TextBlock Text="Startup Experience" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+          <ComboBox x:Name="UxBox" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="Minimal (List only)" />
+            <ComboBoxItem Content="Dashboard (Recent activity)" />
+            <ComboBoxItem Content="Explorer (Folder tree)" />
+          </ComboBox>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Footer Actions -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,20,0,0">
+      <Button x:Name="SaveBtn" Content="Save Changes" Classes="accent" Width="120" />
+      <Button x:Name="CancelBtn" Content="Cancel" Width="100" />
     </StackPanel>
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Name="SaveBtn" Content="Save" />
-      <Button Name="CancelBtn" Content="Cancel" />
-    </StackPanel>
-  </StackPanel>
+  </Grid>
 </Window>

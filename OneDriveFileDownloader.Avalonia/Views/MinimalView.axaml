@@ -2,24 +2,57 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="OneDriveFileDownloader.Avalonia.Views.MinimalView">
-  <StackPanel Margin="8">
-    <TextBlock Text="Minimal" FontSize="18" FontWeight="Bold" />
-    <ListBox ItemsSource="{Binding Videos}" Height="400">
+  <Grid RowDefinitions="Auto, *">
+    <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+      <TextBlock Text="Downloads" FontSize="24" FontWeight="SemiBold" />
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Button Content="Download Selected" Command="{Binding DownloadCommand}" CommandParameter="{Binding SelectedVideo}" Classes="accent" />
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      </StackPanel>
+    </StackPanel>
+
+    <TextBlock Grid.Row="1" Text="No video files found. Try scanning or check your OneDrive." 
+               IsVisible="{Binding Videos.Count, Converter={StaticResource EmptyToVisibleConverter}}"
+               HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+
+    <ListBox Grid.Row="1" x:Name="VideosList" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo, Mode=TwoWay}" 
+             IsVisible="{Binding Videos.Count, Converter={StaticResource CountToVisibleConverter}}"
+             Background="Transparent" BorderThickness="0">
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="{Binding File.Name}" Width="300"/>
-            <ProgressBar Width="150" Height="16" Minimum="0" Maximum="100" Value="{Binding Progress}" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Progress, StringFormat='{}{0:F0}%'}" Width="48" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" Width="60" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding SpeedBytesPerSecond, StringFormat='{}{0:N0} B/s'}" Width="100" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Status}" Foreground="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" Width="80" VerticalAlignment="Center" />
-            <Button Content="⏵" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" />
-            <Button Content="✖" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" />
-            <Button Content="🔁" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" />
-          </StackPanel>
+          <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12">
+            <Grid ColumnDefinitions="Auto, *, 150, 100, Auto">
+              <!-- Status Icon -->
+              <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{Binding Status, Converter={StaticResource StatusToBrushConverter}}" VerticalAlignment="Center" Margin="0,0,16,0" />
+              
+              <!-- File Info -->
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding File.Name}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+              </StackPanel>
+
+              <!-- Progress -->
+              <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0" IsVisible="{Binding IsDownloading}">
+                <ProgressBar Height="4" Minimum="0" Maximum="100" Value="{Binding Progress}" />
+                <Grid ColumnDefinitions="*, *">
+                  <TextBlock Grid.Column="0" Text="{Binding Progress, StringFormat='{}{0:N0}%'}" FontSize="10" />
+                  <TextBlock Grid.Column="1" Text="{Binding EstimatedSecondsRemaining, Converter={StaticResource SecondsToEtaConverter}}" FontSize="10" HorizontalAlignment="Right" />
+                </Grid>
+              </StackPanel>
+
+              <!-- Stats -->
+              <TextBlock Grid.Column="3" Text="{Binding RetryCount, StringFormat='Retries: {0}'}" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding RetryCount, Converter={StaticResource CountToVisibleConverter}}" />
+
+              <!-- Actions -->
+              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4">
+                <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Download" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}" Background="Transparent" BorderThickness="0" />
+                <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Cancel" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsVisible="{Binding IsDownloading}" Background="Transparent" BorderThickness="0" Foreground="Red" />
+                <Button Content="" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Retry" Command="{Binding DataContext.RetryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" IsEnabled="{Binding IsRetryAllowed}" Background="Transparent" BorderThickness="0" />
+              </StackPanel>
+            </Grid>
+          </Border>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
-  </StackPanel>
+  </Grid>
 </UserControl>

@@ -2,20 +2,43 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="OneDriveFileDownloader.Avalonia.Views.DashboardView">
-  <StackPanel Margin="8">
-    <TextBlock Text="Dashboard" FontSize="18" FontWeight="Bold" />
-    <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
-      <Button Content="Open downloads folder" Command="{Binding OpenDownloadsCommand}" />
+  <Grid RowDefinitions="Auto, Auto, *">
+    <TextBlock Grid.Row="0" Text="Dashboard" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,16" />
+    
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,0,0,24">
+      <Button Content="Open downloads folder" Command="{Binding OpenDownloadsCommand}" Classes="accent">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
+          <TextBlock Text="Open Downloads" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding ScanLastCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
+          <TextBlock Text="Scan Last Shared" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
     </StackPanel>
-    <ListBox ItemsSource="{Binding RecentDownloads}" Height="300">
-      <ListBox.ItemTemplate>
-        <DataTemplate>
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBlock Text="{Binding FileName}" Width="300"/>
-            <TextBlock Text="{Binding DownloadedAtUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
-          </StackPanel>
-        </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
-  </StackPanel>
+
+    <StackPanel Grid.Row="2" Spacing="8">
+      <TextBlock Text="Recent Downloads" FontWeight="SemiBold" FontSize="16" />
+      <TextBlock Text="No recent downloads found." IsVisible="{Binding RecentDownloads.Count, Converter={StaticResource EmptyToVisibleConverter}}" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <ListBox x:Name="RecentList" ItemsSource="{Binding RecentDownloads}" IsVisible="{Binding RecentDownloads.Count, Converter={StaticResource CountToVisibleConverter}}" Background="Transparent" BorderThickness="0">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Margin="0,2" Padding="12" DoubleTapped="OnItemDoubleTapped">
+              <Grid ColumnDefinitions="Auto, *, Auto">
+                <TextBlock Grid.Column="0" Text="" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,16,0" Foreground="{DynamicResource SystemAccentColor}" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding FileName}" FontWeight="Medium" />
+                  <TextBlock Text="{Binding LocalPath}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding DownloadedAtUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+  </Grid>
 </UserControl>

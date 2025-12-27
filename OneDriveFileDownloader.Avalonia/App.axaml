@@ -6,10 +6,13 @@
   <Application.Resources>
     <converters:SecondsToEtaConverter x:Key="SecondsToEtaConverter" />
     <converters:StatusToBrushConverter x:Key="StatusToBrushConverter" />
+    <converters:StatusToGlyphConverter x:Key="StatusToGlyphConverter" />
     <converters:BytesToBitmapConverter x:Key="BytesToBitmapConverter" />
     <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    <converters:CountToVisibleConverter x:Key="CountToVisibleConverter" />
+    <converters:EmptyToVisibleConverter x:Key="EmptyToVisibleConverter" />
   </Application.Resources>
   <Application.Styles>
-    <Styles />
+    <FluentTheme />
   </Application.Styles>
 </Application>

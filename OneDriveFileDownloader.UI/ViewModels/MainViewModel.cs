@@ -18,14 +18,43 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
 		public ObservableCollection<SharedItemInfo> SharedItems { get; } = new ObservableCollection<SharedItemInfo>();
 		public ObservableCollection<DownloadItemViewModel> Videos { get; } = new ObservableCollection<DownloadItemViewModel>();
+		private DownloadItemViewModel? _selectedVideo;
+		public DownloadItemViewModel? SelectedVideo { get => _selectedVideo; set => Set(ref _selectedVideo, value); }
 		public ObservableCollection<DownloadRecord> RecentDownloads { get; } = new ObservableCollection<DownloadRecord>();
 
 		public ObservableCollection<DriveItemNode> FolderRoots { get; } = new ObservableCollection<DriveItemNode>();
+
+		private DriveItemNode? _selectedNode;
+		public DriveItemNode? SelectedNode
+		{
+			get => _selectedNode;
+			set
+			{
+				if (Set(ref _selectedNode, value) && value != null)
+				{
+					if (ScanOnSelection)
+					{
+						_ = ScanSelectedNodeAsync(value);
+					}
+				}
+			}
+		}
 
 		public RelayCommand DownloadCommand { get; }
 		public RelayCommand CancelCommand { get; }
 		public RelayCommand RetryCommand { get; }
 		public RelayCommand OpenDownloadsCommand { get; }
+		public RelayCommand ScanLastCommand { get; }
+		public RelayCommand ScanFolderCommand { get; }
+		public RelayCommand SignInCommand { get; }
+		public RelayCommand SignOutCommand { get; }
+		public RelayCommand OpenSettingsCommand { get; }
+		public RelayCommand NavigateCommand { get; }
+		public RelayCommand OpenFileCommand { get; }
+		public RelayCommand AddSharedUrlCommand { get; }
+
+		private bool _isAuthenticated;
+		public bool IsAuthenticated { get => _isAuthenticated; set => Set(ref _isAuthenticated, value); }
 
 		private string _statusText = string.Empty;
 		public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
@@ -36,11 +65,31 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		private object _userThumbnail;
 		public object UserThumbnail { get => _userThumbnail; set => Set(ref _userThumbnail, value); }
 
-		public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null)
+		private readonly OneDriveFileDownloader.UI.Services.IProcessLauncher _launcher;
+
+		private bool _scanOnSelection;
+		public bool ScanOnSelection { get => _scanOnSelection; set { if (Set(ref _scanOnSelection, value)) { _settings.ScanOnSelection = value; SettingsStore.Save(_settings); } } }
+
+		public void UpdateSettings(Settings settings)
+		{
+			if (settings == null) return;
+			_settings.LastClientId = settings.LastClientId;
+			_settings.LastDownloadFolder = settings.LastDownloadFolder;
+			_settings.SelectedUx = settings.SelectedUx;
+			_settings.ScanOnSelection = settings.ScanOnSelection;
+			ScanOnSelection = settings.ScanOnSelection;
+		}
+
+		public MainViewModel(IOneDriveService svc = null, IDownloadRepository repo = null, OneDriveFileDownloader.UI.Services.IProcessLauncher launcher = null)
 		{
 			_svc = svc ?? new OneDriveFileDownloader.Core.Services.OneDriveService();
 			_repo = repo ?? new OneDriveFileDownloader.Core.Services.SqliteDownloadRepository(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads.db"));
 			_settings = SettingsStore.Load();
+			_scanOnSelection = _settings.ScanOnSelection;
+			_launcher = launcher ?? new OneDriveFileDownloader.UI.Services.SystemProcessLauncher();
+
+			// Hook up diagnostic logging from the OneDrive service
+			_svc.DiagnosticLog += msg => System.Diagnostics.Debug.WriteLine($"[OneDrive] {msg}");
 
 			if (!string.IsNullOrEmpty(_settings.LastClientId))
 			{
@@ -51,31 +100,87 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			CancelCommand = new RelayCommand(p => { if (p is DownloadItemViewModel i) i.Cancel(); });
 			RetryCommand = new RelayCommand(async p => { if (p is DownloadItemViewModel i) { i.ResetForRetry(); await DownloadAsync(i); } });
 			OpenDownloadsCommand = new RelayCommand(p => { if (!string.IsNullOrEmpty(_settings.LastDownloadFolder)) OpenFolder(_settings.LastDownloadFolder); });
+			ScanLastCommand = new RelayCommand(async p => {
+				if (SharedItems.Count == 0) await LoadSharedItemsAsync();
+				if (SharedItems.Count == 0) { StatusText = "No shared items available to scan."; return; }
+				await ScanAsync(SharedItems[0]);
+			});
+			ScanFolderCommand = new RelayCommand(async _ => {
+				if (SelectedNode != null) await ScanSelectedNodeAsync(SelectedNode);
+			});
+
+			SignInCommand = new RelayCommand(_ => RequestSignIn?.Invoke());
+			SignOutCommand = new RelayCommand(async _ => await SignOutAsync());
+			OpenSettingsCommand = new RelayCommand(_ => RequestSettings?.Invoke());
+			NavigateCommand = new RelayCommand(p => RequestNavigate?.Invoke(p?.ToString() ?? "Minimal"));
+			OpenFileCommand = new RelayCommand(p => { if (p is DownloadRecord r) OpenPath(r.LocalPath); });
+			AddSharedUrlCommand = new RelayCommand(async _ => await AddSharedFromUrlAsync());
+
+			_ = CheckAuthenticationAsync();
 		}
 
-		public async Task SignInAsync(string clientId, bool save)
+		private async Task CheckAuthenticationAsync()
+		{
+			try
+			{
+				var user = await _svc.AuthenticateSilentAsync();
+				if (user != null)
+				{
+					IsAuthenticated = true;
+					var prof = await _svc.GetUserProfileAsync();
+					ApplyUserProfile(prof);
+					await LoadSharedItemsAsync();
+				}
+			}
+			catch { /* ignore silent failure */ }
+		}
+
+		public event Action RequestSignIn;
+		public event Action RequestSettings;
+		public event Action<string> RequestNavigate;
+		public event Func<Task<string>> RequestSharingUrl;
+
+		public async Task SignOutAsync()
+		{
+			await _svc.SignOutAsync();
+			IsAuthenticated = false;
+			UserDisplayName = "Guest";
+			UserThumbnail = null;
+			SharedItems.Clear();
+			RecentDownloads.Clear();
+			StatusText = "Signed out.";
+		}
+
+		public async Task SignInAsync(string clientId, bool save, IntPtr? parentWindow = null, Action<string> statusCallback = null)
 		{
 			_svc.Configure(clientId);
 			StatusText = "Authenticating...";
-			var user = await _svc.AuthenticateInteractiveAsync();
-			StatusText = "Signed in.";
+			statusCallback?.Invoke(StatusText);
 
-			if (save) SettingsStore.SaveLastClientId(clientId);
+			var user = await _svc.AuthenticateInteractiveAsync(msg => {
+				StatusText = msg;
+				statusCallback?.Invoke(msg);
+			}, parentWindow);
+
+			if (user == null)
+			{
+				StatusText = "Sign in failed or cancelled.";
+				statusCallback?.Invoke(StatusText);
+				return;
+			}
+
+			IsAuthenticated = true;
+			StatusText = "Signed in.";
+			statusCallback?.Invoke(StatusText);
+
+			if (save)
+			{
+				_settings.LastClientId = clientId;
+				SettingsStore.Save(_settings);
+			}
 
 			var prof = await _svc.GetUserProfileAsync();
-			UserDisplayName = prof.DisplayName;
-			if (prof.ThumbnailBytes != null && prof.ThumbnailBytes.Length > 0)
-			{
-				var ms = new MemoryStream(prof.ThumbnailBytes);
-#if WINDOWS
-                var bmp = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
-                ms.Position = 0;
-                _ = bmp.SetSourceAsync(ms.AsRandomAccessStream());
-                UserThumbnail = bmp;
-#else
-				UserThumbnail = prof.ThumbnailBytes; // non-Windows test environments can use raw bytes
-#endif
-			}
+			ApplyUserProfile(prof);
 
 			await LoadSharedItemsAsync();
 		}
@@ -83,9 +188,138 @@ namespace OneDriveFileDownloader.UI.ViewModels
 		public async Task LoadSharedItemsAsync()
 		{
 			SharedItems.Clear();
+			FolderRoots.Clear();
+
 			var items = await _svc.ListSharedWithMeAsync();
 			foreach (var s in items) SharedItems.Add(s);
 			StatusText = SharedItems.Count == 0 ? "No shared items found." : $"Found {SharedItems.Count} shared items.";
+
+			foreach (var s in SharedItems)
+			{
+				var node = await BuildFolderNodeAsync(s);
+				FolderRoots.Add(node);
+			}
+		}
+
+		/// <summary>
+		/// Add a shared item to the tree using its OneDrive sharing URL.
+		/// This is useful when items don't appear in the sharedWithMe API.
+		/// </summary>
+		public async Task AddSharedFromUrlAsync()
+		{
+			if (!IsAuthenticated)
+			{
+				StatusText = "Please sign in first.";
+				return;
+			}
+
+			// Request URL from UI
+			var url = RequestSharingUrl != null ? await RequestSharingUrl() : null;
+			if (string.IsNullOrWhiteSpace(url))
+			{
+				return;
+			}
+
+			StatusText = "Accessing shared item...";
+			try
+			{
+				var sharedItem = await _svc.GetSharedItemFromUrlAsync(url);
+				if (sharedItem == null)
+				{
+					StatusText = "Could not access the sharing URL. Make sure it's a valid OneDrive sharing link.";
+					return;
+				}
+
+				// Check if we already have this item
+				if (SharedItems.Any(s => s.RemoteDriveId == sharedItem.RemoteDriveId && s.RemoteItemId == sharedItem.RemoteItemId))
+				{
+					StatusText = $"'{sharedItem.Name}' is already in the list.";
+					return;
+				}
+
+				// Add to collections
+				SharedItems.Add(sharedItem);
+				var node = await BuildFolderNodeAsync(sharedItem);
+				FolderRoots.Add(node);
+
+				StatusText = $"Added '{sharedItem.Name}' successfully!";
+			}
+			catch (Exception ex)
+			{
+				StatusText = $"Error: {ex.Message}";
+			}
+		}
+
+		private void ApplyUserProfile(UserProfile profile)
+		{
+			UserDisplayName = profile.DisplayName;
+			if (profile.ThumbnailBytes != null && profile.ThumbnailBytes.Length > 0)
+			{
+				UserThumbnail = profile.ThumbnailBytes;
+			}
+		}
+
+		public async Task ScanSelectedNodeAsync(DriveItemNode node)
+		{
+			if (node == null) return;
+			StatusText = $"Scanning {node.Item.Name}...";
+			
+			// Expand node to show subfolders if not already expanded
+			if (!node.IsExpanded)
+			{
+				await ExpandNodeAsync(node);
+			}
+
+			Videos.Clear();
+			var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
+			
+			// List children of this specific folder
+			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
+			var children = await _svc.ListChildrenAsync(fakeShared);
+			
+			foreach (var c in children)
+			{
+				if (!c.IsFolder && videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+				{
+					Videos.Add(new DownloadItemViewModel(c));
+				}
+			}
+			
+			StatusText = $"Found {Videos.Count} video files in {node.Item.Name}.";
+		}
+
+		public async Task PopulateFolderRootsAsync(SharedItemInfo root)
+		{
+			FolderRoots.Clear();
+			if (root == null) return;
+			var node = await BuildFolderNodeAsync(root);
+			FolderRoots.Add(node);
+		}
+
+		public async Task<DriveItemNode> BuildFolderNodeAsync(SharedItemInfo root)
+		{
+			var node = new DriveItemNode(new DriveItemInfo { Id = root.RemoteItemId, DriveId = root.RemoteDriveId, Name = root.Name, IsFolder = root.IsFolder });
+			if (node.IsFolder)
+			{
+				node.OnExpanded += async () => await ExpandNodeAsync(node);
+				await ExpandNodeAsync(node);
+			}
+			return node;
+		}
+
+		public async Task ExpandNodeAsync(DriveItemNode node)
+		{
+			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name, IsFolder = true };
+			var children = await _svc.ListChildrenAsync(fakeShared);
+			
+			// Use Dispatcher to update collection if needed, but for now assume UI thread
+			node.Children.Clear();
+			foreach (var c in children.Where(x => x.IsFolder))
+			{
+				var childNode = new DriveItemNode(c);
+				childNode.OnExpanded += async () => await ExpandNodeAsync(childNode);
+				node.Children.Add(childNode);
+			}
 		}
 
 		public async Task ScanAsync(SharedItemInfo selected)
@@ -95,6 +329,29 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			Videos.Clear();
 			var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
 
+			if (!selected.IsFolder)
+			{
+				if (videoExts.Any(e => selected.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+				{
+					var fileInfo = new DriveItemInfo
+					{
+						Id = selected.RemoteItemId,
+						DriveId = selected.RemoteDriveId,
+						Name = selected.Name,
+						Size = selected.Size,
+						Sha1Hash = selected.Sha1Hash,
+						IsFolder = false
+					};
+					Videos.Add(new DownloadItemViewModel(fileInfo));
+					StatusText = "Found 1 video file.";
+				}
+				else
+				{
+					StatusText = "Shared item is not a video file.";
+				}
+				return;
+			}
+
 			var rootChildren = await _svc.ListChildrenAsync(selected);
 			var videos = rootChildren.Where(c => !c.IsFolder && videoExts.Any(e => c.Name.EndsWith(e, StringComparison.OrdinalIgnoreCase))).ToList();
 			var subfolders = new System.Collections.Generic.Queue<DriveItemInfo>(rootChildren.Where(c => c.IsFolder));
@@ -102,7 +359,7 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			while (subfolders.Count > 0)
 			{
 				var folder = subfolders.Dequeue();
-				var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+				var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name, IsFolder = true };
 				var children = await _svc.ListChildrenAsync(fakeShared);
 				foreach (var c in children)
 				{
@@ -127,79 +384,51 @@ namespace OneDriveFileDownloader.UI.ViewModels
 			foreach (var r in recs) RecentDownloads.Add(r);
 		}
 
-		public async Task<DriveItemNode> BuildFolderNodeAsync(DriveItemInfo folder)
+	private void OpenFolder(string path)
+	{
+		try
 		{
-			var node = new DriveItemNode(folder);
-			// only populate immediate children for performance
-			var fakeShared = new SharedItemInfo { Id = folder.Id, RemoteDriveId = folder.DriveId, RemoteItemId = folder.Id, Name = folder.Name };
+			if (OperatingSystem.IsWindows())
+			{
+				System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", '"' + path + '"') { UseShellExecute = true });
+			}
+			else if (OperatingSystem.IsLinux())
+			{
+				System.Diagnostics.Process.Start("xdg-open", path);
+			}
+			else if (OperatingSystem.IsMacOS())
+			{
+				System.Diagnostics.Process.Start("open", path);
+			}
+		}
+		catch { }
+	}
+
+	public bool OpenPath(string path)
+	{
+		if (string.IsNullOrEmpty(path)) return false;
+		return _launcher.Open(path);
+	}
+
+	public async Task<IList<DownloadItemViewModel>> ScanFolderAsync(DriveItemInfo folder)
+	{
+		var results = new System.Collections.Generic.List<DownloadItemViewModel>();
+		var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
+		var queue = new System.Collections.Generic.Queue<DriveItemInfo>();
+		queue.Enqueue(folder);
+		while (queue.Count > 0)
+		{
+			var f = queue.Dequeue();
+			var fakeShared = new SharedItemInfo { Id = f.Id, RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
 			var children = await _svc.ListChildrenAsync(fakeShared);
 			foreach (var c in children)
 			{
-				node.Children.Add(new DriveItemNode(c));
+				if (c.IsFolder) queue.Enqueue(c);
+				else if (videoExts.Any(e => c.Name.EndsWith(e, System.StringComparison.OrdinalIgnoreCase))) results.Add(new DownloadItemViewModel(c));
 			}
-			return node;
 		}
-
-		public async Task PopulateFolderRootsAsync(SharedItemInfo shared)
-		{
-			FolderRoots.Clear();
-			if (shared == null) return;
-			var rootNode = await BuildFolderNodeAsync(new DriveItemInfo { Id = shared.RemoteItemId, DriveId = shared.RemoteDriveId, Name = shared.Name, IsFolder = true });
-			FolderRoots.Add(rootNode);
-		}
-
-		private void OpenFolder(string path)
-		{
-			try
-			{
-				if (OperatingSystem.IsWindows())
-				{
-					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", '"' + path + '"') { UseShellExecute = true });
-				}
-				else if (OperatingSystem.IsLinux())
-				{
-					System.Diagnostics.Process.Start("xdg-open", path);
-				}
-				else if (OperatingSystem.IsMacOS())
-				{
-					System.Diagnostics.Process.Start("open", path);
-				}
-			}
-			catch { }
-		}
-
-		public async Task ExpandNodeAsync(DriveItemNode node)
-		{
-			if (node == null || !node.IsFolder) return;
-			if (node.Children.Count > 0) return; // already expanded or leaf
-			var fakeShared = new SharedItemInfo { Id = node.Item.Id, RemoteDriveId = node.Item.DriveId, RemoteItemId = node.Item.Id, Name = node.Item.Name };
-			var children = await _svc.ListChildrenAsync(fakeShared);
-			foreach (var c in children)
-			{
-				node.Children.Add(new DriveItemNode(c));
-			}
-			node.IsExpanded = true;
-		}
-
-		public async Task<IList<DownloadItemViewModel>> ScanFolderAsync(DriveItemInfo folder)
-		{
-			var results = new System.Collections.Generic.List<DownloadItemViewModel>();
-			var videoExts = new[] { ".mp4", ".mov", ".mkv", ".avi", ".wmv" };
-			var queue = new System.Collections.Generic.Queue<DriveItemInfo>();
-			queue.Enqueue(folder);
-			while (queue.Count > 0)
-			{
-				var f = queue.Dequeue();
-				var fakeShared = new SharedItemInfo { Id = f.Id, RemoteDriveId = f.DriveId, RemoteItemId = f.Id, Name = f.Name };
-				var children = await _svc.ListChildrenAsync(fakeShared);
-				foreach (var c in children)
-				{
-					if (c.IsFolder) queue.Enqueue(c);
-					else if (videoExts.Any(e => c.Name.EndsWith(e, System.StringComparison.OrdinalIgnoreCase))) results.Add(new DownloadItemViewModel(c));
-				}
-			}
-			return results;
-		}
+		return results;
+	}
 
 		private readonly System.Threading.SemaphoreSlim _downloadSemaphore = new System.Threading.SemaphoreSlim(3);
 
@@ -223,7 +452,10 @@ namespace OneDriveFileDownloader.UI.ViewModels
 
 			await _downloadSemaphore.WaitAsync();
 			item.Status = "Downloading";
-			var temp = Path.GetTempFileName();
+			
+			// Use the configured download folder for the temporary file to ensure it's on the same drive
+			var temp = Path.Combine(downloads, item.File.Name + ".part");
+			if (File.Exists(temp)) File.Delete(temp);
 
 			var progress = new Progress<long>(bytes =>
 			{

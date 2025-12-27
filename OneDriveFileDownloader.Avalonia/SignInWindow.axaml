@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OneDriveFileDownloader.Avalonia.SignInWindow"
+        Title="Sign in" Width="450" Height="400" WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+    <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+      <TextBlock Text="Sign in" FontSize="28" FontWeight="SemiBold" />
+      <TextBlock Text="Connect your OneDrive account to start downloading." Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="1" Spacing="16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Client ID" FontWeight="SemiBold" />
+        <TextBox x:Name="ClientIdBox" Watermark="Enter Azure App Client ID" />
+        <TextBlock Text="Use your Azure App Registration Client ID." FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      </StackPanel>
+
+      <CheckBox x:Name="SaveCheck" Content="Remember this Client ID" IsChecked="True" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Spacing="16" Margin="0,24,0,0">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+        <Button x:Name="SaveBtn" Content="Sign in" Classes="accent" Width="100" />
+        <Button x:Name="CancelBtn" Content="Cancel" Width="100" />
+      </StackPanel>
+      <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center" TextAlignment="Center" />
+    </StackPanel>
+  </Grid>
+</Window>
